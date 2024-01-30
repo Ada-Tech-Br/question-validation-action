@@ -59,6 +59,7 @@ jobs:
       - name: Get diff
         id: files
         run: |
+          git fetch
           git diff --name-only --diff-filter=d origin/main..HEAD
           echo "::set-output name=files::$(git diff --name-only --diff-filter=d origin/main..HEAD)"
 
