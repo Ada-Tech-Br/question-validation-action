@@ -66,4 +66,4 @@ jobs:
         id: test-action
         uses: ./
         with:
-          INPUT_FILES: {{ steps.files.outputs.files }}
+          INPUT_FILES: ${{ steps.files.outputs.files }}
