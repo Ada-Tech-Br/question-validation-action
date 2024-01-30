@@ -1,26 +1,49 @@
 import * as core from '@actions/core'
-import { wait } from './wait'
+import z from 'zod'
+import { validate } from './validate'
+import { FsFileSystem } from './lib/file-system'
+import { InferErrResult, InferOkResult } from './lib/result'
+
+const fileSystem = new FsFileSystem()
 
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
-  try {
-    const ms: string = core.getInput('milliseconds')
+  const rawInputFiles = core.getInput('INPUT_FILES', { required: true })
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+  const input = z.array(z.string()).parse(JSON.parse(rawInputFiles))
+  const jsonFiles = input.filter(file => file.endsWith('.json'))
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+  core.info(`Found ${input.length} files.`)
+  core.info(`Found ${jsonFiles.length} JSON files.`)
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
-  } catch (error) {
-    // Fail the workflow run if an error occurs
-    if (error instanceof Error) core.setFailed(error.message)
+  const results = jsonFiles.map(filePath => validate(filePath, fileSystem))
+  const errors = results.filter(
+    (result): result is InferErrResult<ReturnType<typeof validate>> =>
+      !result.ok
+  )
+
+  const okResults = results.filter(
+    (result): result is InferOkResult<ReturnType<typeof validate>> => result.ok
+  )
+
+  core.info(`Found ${errors.length} invalid files.`)
+  core.info(`Found ${okResults.length} valid files.`)
+
+  for (const validFile of okResults) {
+    core.info(`✅ ${validFile.value.filePath} is valid.`)
+  }
+
+  for (const error of errors) {
+    core.error(`❌ ${error.error.filePath} is invalid:`)
+    for (const errorMessage of error.error.errors) {
+      core.error(`  - ${errorMessage}`)
+    }
+  }
+
+  if (errors.length > 0) {
+    core.setFailed(`Found ${errors.length} invalid files.`)
   }
 }
