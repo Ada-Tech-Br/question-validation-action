@@ -28,7 +28,13 @@ describe('InMemoryFileSystem', () => {
   describe('listFilesInSameDirectory', () => {
     it('should return a list of files in the same directory', () => {
       const result = fileSystem.listFilesInSameDirectory('/path/to')
-      expect(result).toEqual(Ok(['/path/to/file1.txt', '/path/to/file2.txt', '/path/to/subdirectory/file3.txt']))
+      expect(result).toEqual(
+        Ok([
+          '/path/to/file1.txt',
+          '/path/to/file2.txt',
+          '/path/to/subdirectory/file3.txt'
+        ])
+      )
     })
 
     it('should return an empty list for a directory with no files', () => {

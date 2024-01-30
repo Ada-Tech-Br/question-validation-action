@@ -1,6 +1,6 @@
 import { dirname, join } from 'path'
 import { Err, Ok, Result } from './result'
-import { existsSync, readFileSync, readdirSync } from 'fs'
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
 
 export interface IFileSystem {
   readFile(filePath: string): Result<string, string>
@@ -34,7 +34,7 @@ export class InMemoryFileSystem implements IFileSystem {
 
 export class FsFileSystem implements IFileSystem {
   readFile(filePath: string): Result<string, string> {
-    if (existsSync(filePath)) {
+    if (existsSync(filePath) && lstatSync(filePath).isFile()) {
       return Ok(readFileSync(filePath, 'utf-8'))
     } else {
       return Err('invalid path')

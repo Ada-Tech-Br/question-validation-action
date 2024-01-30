@@ -59,7 +59,7 @@
       "text",
       "lcov"
     ],
-    "collectCoverage": true,
+    "collectCoverage": false,
     "collectCoverageFrom": [
       "./src/**"
     ]

@@ -1,10 +1,15 @@
-export type Result<T, E = undefined> = { ok: true, value: T }
-                            | { ok: false, error: E | undefined };
+type OkResult<T> = {
+  ok: true
+  value: T
+};
 
-export const Ok = <T>(data: T): Result<T, never> => {
-    return { ok: true, value: data };
-};
- 
-export const Err = <E>(error?: E): Result<never, E> => {
-    return { ok: false, error };
-};
+type ErrResult<E> = { ok: false; error: E }
+export type Result<T, E = undefined> = OkResult<T> | ErrResult<E>
+
+export const Ok = <T>(data: T): OkResult<T> => {
+  return { ok: true, value: data } as const
+}
+
+export const Err = <E>(error: E): ErrResult<E> => {
+  return { ok: false, error } as const
+}
