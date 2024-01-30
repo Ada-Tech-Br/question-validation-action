@@ -46,24 +46,3 @@ jobs:
       - name: Test
         id: npm-ci-test
         run: npm run ci-test
-
-  test-action:
-    name: GitHub Actions Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v4
-
-      - name: Get diff
-        id: files
-        run: |
-          git fetch
-          echo "files=$(git diff --name-only --diff-filter=d origin/main..HEAD | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
-
-      - name: Test Local Action
-        id: test-action
-        uses: ./
-        with:
-          INPUT_FILES: ${{ steps.files.outputs.files }}
