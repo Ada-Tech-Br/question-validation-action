@@ -5,7 +5,7 @@
 import { validate } from '../src/validate'
 import { expect } from '@jest/globals'
 import { InMemoryFileSystem } from '../src/lib/file-system'
-import { Err } from '../src/lib/result'
+import { Err, InferErrResult } from '../src/lib/result'
 import { readFileSync } from 'fs'
 import path from 'path'
 
@@ -65,9 +65,17 @@ describe('validate', () => {
 
   it('should return an error if the json is invalid', () => {
     const filePath = '/path/some.json'
-    const result = validate(filePath, fileSystem)
+    const result = validate(filePath, fileSystem) as InferErrResult<
+      ReturnType<typeof validate>
+    >
 
     expect(result.ok).toBe(false)
+    expect(result.error).toStrictEqual({
+      errors: [
+        "type: Invalid discriminator value. Expected 'GAP' | 'MULT' | 'VF' | 'whitebox' | 'blackbox'"
+      ],
+      filePath: '/path/some.json'
+    })
   })
 
   it('should return ok if the file is valid', () => {

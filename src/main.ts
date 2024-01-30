@@ -2,12 +2,7 @@ import * as core from '@actions/core'
 import z from 'zod'
 import { validate } from './validate'
 import { FsFileSystem } from './lib/file-system'
-import {
-  ErrResult,
-  InferErrResult,
-  InferOkResult,
-  OkResult
-} from './lib/result'
+import { InferErrResult, InferOkResult } from './lib/result'
 
 const fileSystem = new FsFileSystem()
 
@@ -26,15 +21,12 @@ export async function run(): Promise<void> {
 
   const results = jsonFiles.map(filePath => validate(filePath, fileSystem))
   const errors = results.filter(
-    (
-      result
-    ): result is ErrResult<InferErrResult<ReturnType<typeof validate>>> =>
+    (result): result is InferErrResult<ReturnType<typeof validate>> =>
       !result.ok
   )
 
   const okResults = results.filter(
-    (result): result is OkResult<InferOkResult<ReturnType<typeof validate>>> =>
-      result.ok
+    (result): result is InferOkResult<ReturnType<typeof validate>> => result.ok
   )
 
   core.info(`Found ${errors.length} invalid files.`)

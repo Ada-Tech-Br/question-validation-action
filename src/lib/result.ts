@@ -14,5 +14,5 @@ export const Err = <E>(error: E): ErrResult<E> => {
   return { ok: false, error } as const
 }
 
-export type InferOkResult<T> = T extends OkResult<infer R> ? R : never;
-export type InferErrResult<T> = T extends ErrResult<infer E> ? E : never;
+export type InferOkResult<T> = T extends OkResult<infer R> ? OkResult<R> : never;
+export type InferErrResult<T> = T extends ErrResult<infer E> ? ErrResult<E> : never;
