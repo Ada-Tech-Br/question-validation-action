@@ -56,12 +56,14 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
+      - name: Get diff
+        id: files
+        run: |
+          git diff --name-only --diff-filter=d origin/main..HEAD
+          echo "::set-output name=files::$(git diff --name-only --diff-filter=d origin/main..HEAD)"
+
       - name: Test Local Action
         id: test-action
         uses: ./
         with:
-          milliseconds: 2000
-
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+          INPUT_FILES: {{ steps.files.outputs.files }}

@@ -2,13 +2,6 @@ import { DatabaseQuestionSchema } from '@ada-tech-br/questions'
 import { IFileSystem } from './lib/file-system'
 import { Err, Ok, Result } from './lib/result'
 
-/*
-for each file:
-    check if file exists
-    check if file is a json file
-    check if file is a valid exercise json file
-*/
-
 type ValidationError = {
   filePath: string
   errors: string[]
