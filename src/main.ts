@@ -1,4 +1,5 @@
 import * as core from '@actions/core'
+import z from 'zod'
 
 /**
  * The main function for the action.
@@ -7,5 +8,9 @@ import * as core from '@actions/core'
 export async function run(): Promise<void> {
   const rawInputFiles = core.getInput('INPUT_FILES', { required: true })
 
-  core.info(`The raw input files are: ${rawInputFiles}`)
+  const input = z.array(z.string()).parse(JSON.parse(rawInputFiles));
+  const jsonFiles = input.filter((file) => file.endsWith('.json'))
+
+  core.info(`Found ${input.length} files.`)
+  core.info(`Found ${jsonFiles.length} JSON files.`)
 }
