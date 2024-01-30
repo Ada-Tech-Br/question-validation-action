@@ -6,8 +6,10 @@ import { validate } from '../src/validate'
 import { expect } from '@jest/globals'
 import { InMemoryFileSystem } from '../src/lib/file-system'
 import { Err } from '../src/lib/result'
-import * as validJSON from './data/valid.json'
-const validfile = JSON.stringify(validJSON)
+import { readFileSync } from 'fs'
+import path from 'path'
+
+const validfile = readFileSync(path.join(__dirname, './data/valid.json'), 'utf-8')
 
 describe('validate', () => {
   let fileSystem: InMemoryFileSystem
