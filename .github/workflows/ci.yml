@@ -1,5 +1,9 @@
 name: Continuous Integration
 
+env:
+  NPM_TOKEN: ${{ secrets.NPM_READ_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 on:
   pull_request:
   push:
@@ -8,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   test-typescript:
