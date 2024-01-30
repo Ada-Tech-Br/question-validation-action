@@ -60,7 +60,7 @@ jobs:
         id: files
         run: |
           git fetch
-          echo "files=$(git diff --name-only --diff-filter=d origin/main..HEAD | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUTS
+          echo "files=$(git diff --name-only --diff-filter=d origin/main..HEAD | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
 
       - name: Test Local Action
         id: test-action
