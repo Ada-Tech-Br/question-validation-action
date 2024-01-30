@@ -10,7 +10,9 @@ type ValidationError = {
 export function validate(
   filePath: string,
   fileSystem: IFileSystem
-): Result<'ok', ValidationError> {
+): Result<{
+  filePath: string
+}, ValidationError> {
   const readFileResult = fileSystem.readFile(filePath)
   if (!readFileResult.ok)
     return Err({
@@ -45,7 +47,9 @@ export function validate(
     })
   }
 
-  return Ok('ok')
+  return Ok({
+    filePath
+  })
 }
 
 function parseToJSON(
