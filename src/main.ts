@@ -1,14 +1,9 @@
 import * as core from '@actions/core'
 import z from 'zod'
 import { validate } from './validate'
-import { FsFileSystem } from './lib/file-system';
-import { InferErrResult } from './lib/result';
+import { FsFileSystem } from './lib/file-system'
 
-
-const fileSystem = new FsFileSystem();
-
-
-type help = InferErrResult<ReturnType<typeof validate>>
+const fileSystem = new FsFileSystem()
 
 /**
  * The main function for the action.

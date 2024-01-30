@@ -10,9 +10,12 @@ type ValidationError = {
 export function validate(
   filePath: string,
   fileSystem: IFileSystem
-): Result<{
-  filePath: string
-}, ValidationError> {
+): Result<
+  {
+    filePath: string
+  },
+  ValidationError
+> {
   const readFileResult = fileSystem.readFile(filePath)
   if (!readFileResult.ok)
     return Err({
