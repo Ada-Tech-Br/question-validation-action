@@ -1,9 +1,9 @@
-type OkResult<T> = {
+export type OkResult<T> = {
   ok: true
   value: T
 };
 
-type ErrResult<E> = { ok: false; error: E }
+export type ErrResult<E> = { ok: false; error: E }
 export type Result<T, E = undefined> = OkResult<T> | ErrResult<E>
 
 export const Ok = <T>(data: T): OkResult<T> => {

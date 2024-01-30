@@ -7441,15 +7441,21 @@ async function run() {
     core.info(`Found ${input.length} files.`);
     core.info(`Found ${jsonFiles.length} JSON files.`);
     const results = jsonFiles.map(filePath => (0, validate_1.validate)(filePath, fileSystem));
-    for (const result of results) {
-        if (result.ok) {
-            core.info(`✅ ${result.value.filePath} is valid.`);
-            continue;
+    const errors = results.filter((result) => !result.ok);
+    const okResults = results.filter((result) => result.ok);
+    core.info(`Found ${errors.length} invalid files.`);
+    core.info(`Found ${okResults.length} valid files.`);
+    for (const validFile of okResults) {
+        core.info(`✅ ${validFile.value.filePath} is valid.`);
+    }
+    for (const error of errors) {
+        core.error(`❌ ${error.error.filePath} is invalid:`);
+        for (const errorMessage of error.error.errors) {
+            core.error(`  - ${errorMessage}`);
         }
-        core.error(`❌ ${result.error.filePath} is invalid:`);
-        for (const error of result.error.errors) {
-            core.error(`  - ${error}`);
-        }
+    }
+    if (errors.length > 0) {
+        core.setFailed(`Found ${errors.length} invalid files.`);
     }
 }
 exports.run = run;
