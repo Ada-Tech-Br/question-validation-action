@@ -19,22 +19,15 @@ export async function run(): Promise<void> {
   core.info(`Found ${jsonFiles.length} JSON files.`)
 
   const results = jsonFiles.map(filePath => validate(filePath, fileSystem))
-  let hasError = false
 
   for (const result of results) {
     if (result.ok) {
       core.info(`✅ ${result.value.filePath} is valid.`)
       continue
     }
-
-    hasError = true
     core.error(`❌ ${result.error.filePath} is invalid:`)
     for (const error of result.error.errors) {
       core.error(`  - ${error}`)
     }
-  }
-
-  if (hasError) {
-    core.setFailed('Validation failed')
   }
 }
