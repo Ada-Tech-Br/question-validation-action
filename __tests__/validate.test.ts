@@ -9,7 +9,10 @@ import { Err } from '../src/lib/result'
 import { readFileSync } from 'fs'
 import path from 'path'
 
-const validfile = readFileSync(path.join(__dirname, './data/valid.json'), 'utf-8')
+const validfile = readFileSync(
+  path.join(__dirname, './data/valid.json'),
+  'utf-8'
+)
 
 describe('validate', () => {
   let fileSystem: InMemoryFileSystem
@@ -19,10 +22,7 @@ describe('validate', () => {
     files.set('/path/invalid.json', 'invalid json')
     files.set('/path/everest.json', '{ "type": "EVEREST" }')
     files.set('/path/some.json', '{ "type": "SOME_TYPE" }')
-    files.set(
-      '/path/valid.json',
-      validfile
-    )
+    files.set('/path/valid.json', validfile)
 
     fileSystem = new InMemoryFileSystem(files)
   })
