@@ -1,6 +1,11 @@
-import { DatabaseQuestionSchema } from '@ada-tech-br/questions'
+import {
+  DatabaseQuestionSchema,
+  BlackboxQuestionFileSchema,
+  WhiteboxQuestionFileSchema
+} from '@ada-tech-br/questions'
 import { IFileSystem } from './lib/file-system'
 import { Err, Ok, Result } from 'cake-result'
+import z from 'zod'
 
 type ValidationError = {
   filePath: string
@@ -31,10 +36,20 @@ export function validate(
     })
 
   if ((parseToJSONResult.value as { type: string }).type === 'EVEREST') {
-    return Err({
-      errors: [`EVEREST is not a supported type (yet)`],
-      filePath
-    })
+    const everestSchema = z.union([
+      BlackboxQuestionFileSchema,
+      WhiteboxQuestionFileSchema
+    ])
+
+    const everestResult = everestSchema.safeParse(parseToJSONResult.value)
+    if (!everestResult.success) {
+      return Err({
+        filePath,
+        errors: everestResult.error.issues.map(({ path, message }) =>
+          (path.length ? [path.join('/')] : []).concat(message).join(': ')
+        )
+      })
+    }
   }
 
   const validationResult = DatabaseQuestionSchema.safeParse(

@@ -7506,14 +7506,18 @@ exports.run = run;
 /***/ }),
 
 /***/ 4953:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validate = void 0;
 const questions_1 = __nccwpck_require__(6447);
 const cake_result_1 = __nccwpck_require__(8569);
+const zod_1 = __importDefault(__nccwpck_require__(3301));
 function validate(filePath, fileSystem) {
     const readFileResult = fileSystem.readFile(filePath);
     if (!readFileResult.ok)
@@ -7528,10 +7532,17 @@ function validate(filePath, fileSystem) {
             filePath
         });
     if (parseToJSONResult.value.type === 'EVEREST') {
-        return (0, cake_result_1.Err)({
-            errors: [`EVEREST is not a supported type (yet)`],
-            filePath
-        });
+        const everestSchema = zod_1.default.union([
+            questions_1.BlackboxQuestionFileSchema,
+            questions_1.WhiteboxQuestionFileSchema
+        ]);
+        const everestResult = everestSchema.safeParse(parseToJSONResult.value);
+        if (!everestResult.success) {
+            return (0, cake_result_1.Err)({
+                filePath,
+                errors: everestResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '))
+            });
+        }
     }
     const validationResult = questions_1.DatabaseQuestionSchema.safeParse(parseToJSONResult.value);
     if (!validationResult.success) {

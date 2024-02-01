@@ -51,18 +51,6 @@ describe('validate', () => {
     )
   })
 
-  it('should return an error if the type is EVEREST', () => {
-    const filePath = '/path/everest.json'
-    const result = validate(filePath, fileSystem)
-
-    expect(result).toEqual(
-      Err({
-        errors: ['EVEREST is not a supported type (yet)'],
-        filePath
-      })
-    )
-  })
-
   it('should return an error if the json is invalid', () => {
     const filePath = '/path/some.json'
     const result = validate(filePath, fileSystem) as InferErrResult<
