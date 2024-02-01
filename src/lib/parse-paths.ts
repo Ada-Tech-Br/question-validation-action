@@ -22,7 +22,11 @@ export function normalizePath(input: string): string {
     converted = converted.replace(/\\303\\241/g, 'Ñ');
     converted = converted.replace(/\\303\\241/g, 'ü');
     converted = converted.replace(/\\303\\241/g, 'Ü');
+
+    converted = converted.replace(/\\303\\243/g, 'ã');
     converted = converted.replace(/\\303\\203/g, 'Ã');
+
+    converted = converted.replace(/\\303\\247/g, 'ç');
     converted = converted.replace(/\\303\\207/g, 'Ç');
 
 
