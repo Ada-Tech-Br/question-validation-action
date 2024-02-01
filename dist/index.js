@@ -7381,7 +7381,7 @@ exports.FsFileSystem = FsFileSystem;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parsePaths = void 0;
 function parsePaths(paths) {
-    return paths.filter(file => file.endsWith('.json') || file.endsWith('.json"'));
+    return paths.filter(file => file.endsWith('.json') || file.endsWith('.json"')).map(file => file.replace(/"/g, ''));
 }
 exports.parsePaths = parsePaths;
 
