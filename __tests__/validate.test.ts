@@ -5,7 +5,7 @@
 import { validate } from '../src/validate'
 import { expect } from '@jest/globals'
 import { InMemoryFileSystem } from '../src/lib/file-system'
-import { Err, InferErrResult } from '../src/lib/result'
+import { Err, InferErrResult } from 'cake-result'
 import { readFileSync } from 'fs'
 import path from 'path'
 

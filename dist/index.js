@@ -1796,6 +1796,25 @@ function isLoopbackAddress(host) {
 
 /***/ }),
 
+/***/ 8569:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Err = exports.Ok = void 0;
+const Ok = (data) => {
+    return { ok: true, value: data };
+};
+exports.Ok = Ok;
+const Err = (error) => {
+    return { ok: false, error };
+};
+exports.Err = Err;
+
+
+/***/ }),
+
 /***/ 4351:
 /***/ ((module) => {
 
@@ -7325,7 +7344,7 @@ exports.NEVER = parseUtil_1.INVALID;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FsFileSystem = exports.InMemoryFileSystem = void 0;
 const path_1 = __nccwpck_require__(1017);
-const result_1 = __nccwpck_require__(2448);
+const cake_result_1 = __nccwpck_require__(8569);
 const fs_1 = __nccwpck_require__(7147);
 class InMemoryFileSystem {
     files;
@@ -7335,10 +7354,10 @@ class InMemoryFileSystem {
     readFile(filePath) {
         const fileContent = this.files.get(filePath);
         if (fileContent) {
-            return (0, result_1.Ok)(fileContent);
+            return (0, cake_result_1.Ok)(fileContent);
         }
         else {
-            return (0, result_1.Err)('invalid path');
+            return (0, cake_result_1.Err)('invalid path');
         }
     }
     listFilesInSameDirectory(filePath) {
@@ -7349,23 +7368,23 @@ class InMemoryFileSystem {
             return path.startsWith(directory);
         })
             .map(([path]) => path);
-        return (0, result_1.Ok)(filesInSameDirectory);
+        return (0, cake_result_1.Ok)(filesInSameDirectory);
     }
 }
 exports.InMemoryFileSystem = InMemoryFileSystem;
 class FsFileSystem {
     readFile(filePath) {
         if ((0, fs_1.existsSync)(filePath) && (0, fs_1.lstatSync)(filePath).isFile()) {
-            return (0, result_1.Ok)((0, fs_1.readFileSync)(filePath, 'utf-8'));
+            return (0, cake_result_1.Ok)((0, fs_1.readFileSync)(filePath, 'utf-8'));
         }
         else {
-            return (0, result_1.Err)('invalid path');
+            return (0, cake_result_1.Err)('invalid path');
         }
     }
     listFilesInSameDirectory(filePath) {
         const directory = (0, path_1.dirname)(filePath);
         const files = (0, fs_1.readdirSync)(directory).map(f => (0, path_1.join)(directory, f));
-        return (0, result_1.Ok)(files);
+        return (0, cake_result_1.Ok)(files);
     }
 }
 exports.FsFileSystem = FsFileSystem;
@@ -7410,25 +7429,6 @@ function normalizePath(input) {
     return converted;
 }
 exports.normalizePath = normalizePath;
-
-
-/***/ }),
-
-/***/ 2448:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Err = exports.Ok = void 0;
-const Ok = (data) => {
-    return { ok: true, value: data };
-};
-exports.Ok = Ok;
-const Err = (error) => {
-    return { ok: false, error };
-};
-exports.Err = Err;
 
 
 /***/ }),
@@ -7513,44 +7513,44 @@ exports.run = run;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validate = void 0;
 const questions_1 = __nccwpck_require__(6447);
-const result_1 = __nccwpck_require__(2448);
+const cake_result_1 = __nccwpck_require__(8569);
 function validate(filePath, fileSystem) {
     const readFileResult = fileSystem.readFile(filePath);
     if (!readFileResult.ok)
-        return (0, result_1.Err)({
+        return (0, cake_result_1.Err)({
             errors: [readFileResult.error],
             filePath
         });
     const parseToJSONResult = parseToJSON(filePath, readFileResult.value);
     if (!parseToJSONResult.ok)
-        return (0, result_1.Err)({
+        return (0, cake_result_1.Err)({
             errors: [parseToJSONResult.error],
             filePath
         });
     if (parseToJSONResult.value.type === 'EVEREST') {
-        return (0, result_1.Err)({
+        return (0, cake_result_1.Err)({
             errors: [`EVEREST is not a supported type (yet)`],
             filePath
         });
     }
     const validationResult = questions_1.DatabaseQuestionSchema.safeParse(parseToJSONResult.value);
     if (!validationResult.success) {
-        return (0, result_1.Err)({
+        return (0, cake_result_1.Err)({
             filePath,
             errors: validationResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '))
         });
     }
-    return (0, result_1.Ok)({
+    return (0, cake_result_1.Ok)({
         filePath
     });
 }
 exports.validate = validate;
 function parseToJSON(filePath, fileContent) {
     try {
-        return (0, result_1.Ok)(JSON.parse(fileContent));
+        return (0, cake_result_1.Ok)(JSON.parse(fileContent));
     }
     catch (error) {
-        return (0, result_1.Err)(`Invalid JSON in file ${filePath}`);
+        return (0, cake_result_1.Err)(`Invalid JSON in file ${filePath}`);
     }
 }
 

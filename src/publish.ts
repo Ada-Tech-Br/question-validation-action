@@ -1,5 +1,5 @@
 import { DatabaseQuestion } from '@ada-tech-br/questions'
-import { Err, Ok, Result } from './lib/result'
+import { Err, Ok, Result } from 'cake-result'
 
 export type PublishOptions = {
   token: string

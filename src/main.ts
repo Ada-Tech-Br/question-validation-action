@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import z from 'zod'
 import { validate } from './validate'
 import { FsFileSystem } from './lib/file-system'
-import { InferErrResult, InferOkResult } from './lib/result'
+import { InferErrResult, InferOkResult } from 'cake-result'
 import { parsePaths } from './lib/parse-paths'
 
 const fileSystem = new FsFileSystem()

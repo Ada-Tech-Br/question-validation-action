@@ -1,6 +1,6 @@
 import { DatabaseQuestionSchema } from '@ada-tech-br/questions'
 import { IFileSystem } from './lib/file-system'
-import { Err, Ok, Result } from './lib/result'
+import { Err, Ok, Result } from 'cake-result'
 
 type ValidationError = {
   filePath: string

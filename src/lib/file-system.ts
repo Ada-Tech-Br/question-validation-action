@@ -1,5 +1,5 @@
 import { dirname, join } from 'path'
-import { Err, Ok, Result } from './result'
+import { Err, Ok, Result } from 'cake-result'
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
 
 export interface IFileSystem {

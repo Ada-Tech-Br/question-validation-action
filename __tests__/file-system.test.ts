@@ -1,5 +1,5 @@
 import { InMemoryFileSystem } from '../src/lib/file-system'
-import { Ok, Err } from '../src/lib/result'
+import { Ok, Err } from 'cake-result'
 
 describe('InMemoryFileSystem', () => {
   let fileSystem: InMemoryFileSystem
