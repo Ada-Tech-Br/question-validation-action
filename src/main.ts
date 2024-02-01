@@ -3,6 +3,7 @@ import z from 'zod'
 import { validate } from './validate'
 import { FsFileSystem } from './lib/file-system'
 import { InferErrResult, InferOkResult } from './lib/result'
+import { parsePaths } from './lib/parse-paths'
 
 const fileSystem = new FsFileSystem()
 
@@ -14,7 +15,7 @@ export async function run(): Promise<void> {
   const rawInputFiles = core.getInput('INPUT_FILES', { required: true })
 
   const input = z.array(z.string()).parse(JSON.parse(rawInputFiles))
-  const jsonFiles = input.filter(file => file.endsWith('.json'))
+  const jsonFiles = parsePaths(input)
 
   core.info(`Found ${input.length} files.`)
   core.info(`Found ${jsonFiles.length} JSON files.`)
