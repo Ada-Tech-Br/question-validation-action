@@ -3,7 +3,7 @@ import { parsePaths } from '../src/lib/parse-paths'
 const sample = [
   'folder/path/file.json',
   '"BD-Banco-de-Dados/BD-PO-001 BANCO DE DADOS (POSTGRES)/Exerc\\303\\255cios/bd-po-001_23.json"',
-  'folder/path/file.md',
+  'folder/path/file.md'
 ]
 
 describe('parsePaths', () => {
@@ -12,7 +12,7 @@ describe('parsePaths', () => {
 
     expect(result).toEqual([
       'folder/path/file.json',
-      '"BD-Banco-de-Dados/BD-PO-001 BANCO DE DADOS (POSTGRES)/Exerc\\303\\255cios/bd-po-001_23.json"',
+      '"BD-Banco-de-Dados/BD-PO-001 BANCO DE DADOS (POSTGRES)/Exerc\\303\\255cios/bd-po-001_23.json"'
     ])
   })
 })

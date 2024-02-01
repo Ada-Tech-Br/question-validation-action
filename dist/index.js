@@ -7373,6 +7373,21 @@ exports.FsFileSystem = FsFileSystem;
 
 /***/ }),
 
+/***/ 1672:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parsePaths = void 0;
+function parsePaths(paths) {
+    return paths.filter(file => file.endsWith('.json') || file.endsWith('.json"'));
+}
+exports.parsePaths = parsePaths;
+
+
+/***/ }),
+
 /***/ 2448:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -7429,6 +7444,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const zod_1 = __importDefault(__nccwpck_require__(3301));
 const validate_1 = __nccwpck_require__(4953);
 const file_system_1 = __nccwpck_require__(2697);
+const parse_paths_1 = __nccwpck_require__(1672);
 const fileSystem = new file_system_1.FsFileSystem();
 /**
  * The main function for the action.
@@ -7437,7 +7453,7 @@ const fileSystem = new file_system_1.FsFileSystem();
 async function run() {
     const rawInputFiles = core.getInput('INPUT_FILES', { required: true });
     const input = zod_1.default.array(zod_1.default.string()).parse(JSON.parse(rawInputFiles));
-    const jsonFiles = input.filter(file => file.endsWith('.json'));
+    const jsonFiles = (0, parse_paths_1.parsePaths)(input);
     core.info(`Found ${input.length} files.`);
     core.info(`Found ${jsonFiles.length} JSON files.`);
     const results = jsonFiles.map(filePath => (0, validate_1.validate)(filePath, fileSystem));
