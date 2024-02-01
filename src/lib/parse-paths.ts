@@ -7,7 +7,10 @@ export function parsePaths(paths: string[]): string[] {
 }
 
 export function normalizePath(input: string): string {
-  let decodedPath = Buffer.from(input, 'utf-8').toString();
+    let converted = input.replace(/\\303\\255/g, 'í');
 
-  return decodedPath
+    // Convert escaped double quotes and backslashes
+    converted = converted.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  
+    return converted;
 }

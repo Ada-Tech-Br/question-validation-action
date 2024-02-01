@@ -7387,8 +7387,10 @@ function parsePaths(paths) {
 }
 exports.parsePaths = parsePaths;
 function normalizePath(input) {
-    let decodedPath = Buffer.from(input, 'utf-8').toString();
-    return decodedPath;
+    let converted = input.replace(/\\303\\255/g, 'í');
+    // Convert escaped double quotes and backslashes
+    converted = converted.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    return converted;
 }
 exports.normalizePath = normalizePath;
 
