@@ -7379,17 +7379,18 @@ exports.FsFileSystem = FsFileSystem;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.normalizeFilePath = exports.parsePaths = void 0;
+exports.normalizePath = exports.parsePaths = void 0;
 function parsePaths(paths) {
-    return paths.filter(file => file.endsWith('.json') || file.endsWith('.json"')).map(file => normalizeFilePath(file.replace(/"/g, '')));
+    return paths
+        .filter(file => file.endsWith('.json') || file.endsWith('.json"'))
+        .map(file => normalizePath(file.replace(/"/g, '')));
 }
 exports.parsePaths = parsePaths;
-function normalizeFilePath(filePath) {
-    let decodedPath = decodeURIComponent(escape(filePath));
-    let normalizedPath = decodedPath;
-    return normalizedPath;
+function normalizePath(input) {
+    let decodedPath = Buffer.from(input, 'utf-8').toString();
+    return decodedPath;
 }
-exports.normalizeFilePath = normalizeFilePath;
+exports.normalizePath = normalizePath;
 
 
 /***/ }),
