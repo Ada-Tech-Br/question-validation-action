@@ -7336,62 +7336,6 @@ exports.NEVER = parseUtil_1.INVALID;
 
 /***/ }),
 
-/***/ 2697:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FsFileSystem = exports.InMemoryFileSystem = void 0;
-const path_1 = __nccwpck_require__(1017);
-const cake_result_1 = __nccwpck_require__(8569);
-const fs_1 = __nccwpck_require__(7147);
-class InMemoryFileSystem {
-    files;
-    constructor(files) {
-        this.files = files;
-    }
-    readFile(filePath) {
-        const fileContent = this.files.get(filePath);
-        if (fileContent) {
-            return (0, cake_result_1.Ok)(fileContent);
-        }
-        else {
-            return (0, cake_result_1.Err)('invalid path');
-        }
-    }
-    listFilesInSameDirectory(filePath) {
-        const entries = Array.from(this.files.entries());
-        const filesInSameDirectory = entries
-            .filter(([path]) => {
-            const directory = (0, path_1.dirname)(filePath);
-            return path.startsWith(directory);
-        })
-            .map(([path]) => path);
-        return (0, cake_result_1.Ok)(filesInSameDirectory);
-    }
-}
-exports.InMemoryFileSystem = InMemoryFileSystem;
-class FsFileSystem {
-    readFile(filePath) {
-        if ((0, fs_1.existsSync)(filePath) && (0, fs_1.lstatSync)(filePath).isFile()) {
-            return (0, cake_result_1.Ok)((0, fs_1.readFileSync)(filePath, 'utf-8'));
-        }
-        else {
-            return (0, cake_result_1.Err)('invalid path');
-        }
-    }
-    listFilesInSameDirectory(filePath) {
-        const directory = (0, path_1.dirname)(filePath);
-        const files = (0, fs_1.readdirSync)(directory).map(f => (0, path_1.join)(directory, f));
-        return (0, cake_result_1.Ok)(files);
-    }
-}
-exports.FsFileSystem = FsFileSystem;
-
-
-/***/ }),
-
 /***/ 1672:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -7468,10 +7412,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const zod_1 = __importDefault(__nccwpck_require__(3301));
-const validate_1 = __nccwpck_require__(4953);
-const file_system_1 = __nccwpck_require__(2697);
+const questions_1 = __nccwpck_require__(6447);
 const parse_paths_1 = __nccwpck_require__(1672);
-const fileSystem = new file_system_1.FsFileSystem();
+const fileSystem = new questions_1.FsFileSystem();
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -7482,7 +7425,7 @@ async function run() {
     const jsonFiles = (0, parse_paths_1.parsePaths)(input);
     core.info(`Found ${input.length} files.`);
     core.info(`Found ${jsonFiles.length} JSON files.`);
-    const results = jsonFiles.map(filePath => (0, validate_1.validate)(filePath, fileSystem));
+    const results = jsonFiles.map(filePath => (0, questions_1.validate)(filePath, fileSystem));
     const errors = results.filter((result) => !result.ok);
     const okResults = results.filter((result) => result.ok);
     core.info(`Found ${errors.length} invalid files.`);
@@ -7501,257 +7444,6 @@ async function run() {
     }
 }
 exports.run = run;
-
-
-/***/ }),
-
-/***/ 6277:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validateEverest = void 0;
-const questions_1 = __nccwpck_require__(6447);
-const cake_result_1 = __nccwpck_require__(8569);
-const path_1 = __importDefault(__nccwpck_require__(1017));
-function validateEverest(filePath, fileContent, fileSystem) {
-    const type = fileContent.type;
-    if (type !== 'EVEREST') {
-        return (0, cake_result_1.Err)({
-            errors: [`Not a everest exercise file expected "EVEREST". Got: ${type}`],
-            filePath
-        });
-    }
-    const listFilesResult = fileSystem.listFilesInSameDirectory(filePath);
-    if (!listFilesResult.ok) {
-        return (0, cake_result_1.Err)({
-            filePath,
-            errors: [listFilesResult.error]
-        });
-    }
-    const files = listFilesResult.value;
-    const exerciseType = getExerciseType(fileContent);
-    if (exerciseType === 'blackbox') {
-        return validateBlackBox(files, filePath, fileContent);
-    }
-    const language = getWhiteboxExerciseLanguage(fileContent);
-    const validateWhiteBoxFilesResult = validateWhiteBoxFiles(files, filePath, language);
-    if (!validateWhiteBoxFilesResult.ok) {
-        return (0, cake_result_1.Err)({
-            errors: validateWhiteBoxFilesResult.error,
-            filePath
-        });
-    }
-    const { descriptionFilePath, privateTestCasesFilePath, publicTestCasesFilePath } = validateWhiteBoxFilesResult.value;
-    const readDescriptionFileResult = fileSystem.readFile(descriptionFilePath);
-    const readPublicTestCasesFileResult = fileSystem.readFile(publicTestCasesFilePath);
-    const readPrivateTestCasesFileResult = fileSystem.readFile(privateTestCasesFilePath);
-    if (!(readDescriptionFileResult.ok &&
-        readPublicTestCasesFileResult.ok &&
-        readPrivateTestCasesFileResult.ok)) {
-        const errors = [];
-        if (!readDescriptionFileResult.ok) {
-            errors.push(readDescriptionFileResult.error);
-        }
-        if (!readPublicTestCasesFileResult.ok) {
-            errors.push(readPublicTestCasesFileResult.error);
-        }
-        if (!readPrivateTestCasesFileResult.ok) {
-            errors.push(readPrivateTestCasesFileResult.error);
-        }
-        return (0, cake_result_1.Err)({ filePath, errors });
-    }
-    const whiteBoxValidationResult = questions_1.WhiteboxQuestionSchema.safeParse({
-        ...fileContent,
-        description: readDescriptionFileResult.value,
-        publicTestCases: readPublicTestCasesFileResult.value,
-        privateTestCases: readPrivateTestCasesFileResult.value,
-        type: 'whitebox',
-        language
-    });
-    if (!whiteBoxValidationResult.success) {
-        return (0, cake_result_1.Err)({
-            filePath,
-            errors: whiteBoxValidationResult.error.issues.map(({ path: pathh, message }) => (pathh.length ? [pathh.join('/')] : []).concat(message).join(': '))
-        });
-    }
-    return (0, cake_result_1.Ok)({
-        filePath,
-        question: whiteBoxValidationResult.data
-    });
-}
-exports.validateEverest = validateEverest;
-function getWhiteboxExerciseLanguage(fileContent) {
-    const language = fileContent.language;
-    const rempap = {
-        java: 'java17'
-    };
-    return rempap[language] ?? language;
-}
-function validateBlackBox(files, filePath, fileContent) {
-    const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath);
-    if (!validateBlackBoxFilesResult.ok) {
-        return (0, cake_result_1.Err)({
-            errors: [validateBlackBoxFilesResult.error],
-            filePath
-        });
-    }
-    const { descriptionFilePath } = validateBlackBoxFilesResult.value;
-    const blackBoxValidationResult = questions_1.BlackboxQuestionSchema.safeParse({
-        ...fileContent,
-        description: descriptionFilePath,
-        type: 'blackbox',
-        publicTestCases: fileContent.public_cases,
-        privateTestCases: fileContent.private_cases
-    });
-    if (!blackBoxValidationResult.success) {
-        return (0, cake_result_1.Err)({
-            filePath,
-            errors: blackBoxValidationResult.error.issues.map(({ path: pathh, message }) => (pathh.length ? [pathh.join('/')] : []).concat(message).join(': '))
-        });
-    }
-    const question = blackBoxValidationResult.data;
-    if (Object.keys(question.templates).length <= 0) {
-        return (0, cake_result_1.Err)({
-            errors: [`No templates found for exercise ${filePath}`],
-            filePath
-        });
-    }
-    return (0, cake_result_1.Ok)({
-        filePath,
-        question: blackBoxValidationResult.data
-    });
-}
-function getExerciseType(fileContent) {
-    if (typeof fileContent === 'object' &&
-        fileContent &&
-        Object.hasOwn(fileContent, 'public_cases') &&
-        Object.hasOwn(fileContent, 'private_cases'))
-        return 'blackbox';
-    return 'whitebox';
-}
-function validateBlackBoxFiles(files, exerciseJsonPath) {
-    const [pathToSearch] = exerciseJsonPath.split('.json');
-    const descriptionFilePath = files.find(f => f.includes(`${pathToSearch}.md`)) ??
-        files.find(f => f.endsWith(`.md`));
-    if (!descriptionFilePath) {
-        return (0, cake_result_1.Err)(`No description file ${pathToSearch}.md found for exercise ${exerciseJsonPath}`);
-    }
-    return (0, cake_result_1.Ok)({ descriptionFilePath });
-}
-function validateWhiteBoxFiles(files, exerciseJsonPath, language) {
-    // find description file .MD
-    const [pathToSearch] = exerciseJsonPath.split('.json');
-    const descriptionFilePath = files.find(f => f.includes(`${pathToSearch}.md`)) ??
-        files.find(f => f.endsWith(`.md`));
-    const errors = [];
-    if (!descriptionFilePath) {
-        errors.push(`No description file ${pathToSearch}.md found for exercise ${exerciseJsonPath}`);
-    }
-    let publicTestFileName = '';
-    let privateTestFileName = '';
-    switch (language) {
-        case 'csharp': {
-            publicTestFileName = 'TestCases.cs';
-            privateTestFileName = 'PrivateTestCases.cs';
-            break;
-        }
-        case 'java17': {
-            publicTestFileName = 'TestCases.java';
-            privateTestFileName = 'PrivateTestCases.java';
-            break;
-        }
-        case 'javascript': {
-            publicTestFileName = 'test_cases.test.js';
-            privateTestFileName = 'test_cases_private.test.js';
-            break;
-        }
-        case 'nodejs': {
-            publicTestFileName = 'test_cases.test.js';
-            privateTestFileName = 'test_cases_private.test.js';
-            break;
-        }
-        case 'python': {
-            publicTestFileName = 'test_cases.py';
-            privateTestFileName = 'test_cases_private.py';
-            break;
-        }
-    }
-    const publicTestCasesFilePath = files.find(f => !f.endsWith(privateTestFileName) && f.endsWith(publicTestFileName));
-    const privateTestCasesFilePath = files.find(f => f.endsWith(privateTestFileName));
-    if (!privateTestCasesFilePath ||
-        !publicTestCasesFilePath ||
-        !descriptionFilePath) {
-        const dirname = path_1.default.dirname(exerciseJsonPath);
-        if (!publicTestCasesFilePath) {
-            errors.push(`No public test cases file ${path_1.default.posix.join(dirname, publicTestFileName)} found for exercise ${exerciseJsonPath}`);
-        }
-        if (!privateTestCasesFilePath) {
-            errors.push(`No private test cases file ${path_1.default.posix.join(dirname, privateTestFileName)} found for exercise ${exerciseJsonPath}`);
-        }
-        return (0, cake_result_1.Err)(errors);
-    }
-    return (0, cake_result_1.Ok)({
-        descriptionFilePath,
-        privateTestCasesFilePath,
-        publicTestCasesFilePath
-    });
-}
-
-
-/***/ }),
-
-/***/ 4953:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validate = void 0;
-const questions_1 = __nccwpck_require__(6447);
-const cake_result_1 = __nccwpck_require__(8569);
-const validate_everest_1 = __nccwpck_require__(6277);
-function validate(filePath, fileSystem) {
-    const readFileResult = fileSystem.readFile(filePath);
-    if (!readFileResult.ok)
-        return (0, cake_result_1.Err)({
-            errors: [readFileResult.error],
-            filePath
-        });
-    const parseToJSONResult = parseToJSON(filePath, readFileResult.value);
-    if (!parseToJSONResult.ok)
-        return (0, cake_result_1.Err)({
-            errors: [parseToJSONResult.error],
-            filePath
-        });
-    if (parseToJSONResult.value.type === 'EVEREST') {
-        return (0, validate_everest_1.validateEverest)(filePath, parseToJSONResult.value, fileSystem);
-    }
-    const validationResult = questions_1.DatabaseQuestionSchema.safeParse(parseToJSONResult.value);
-    if (!validationResult.success) {
-        return (0, cake_result_1.Err)({
-            filePath,
-            errors: validationResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '))
-        });
-    }
-    return (0, cake_result_1.Ok)({
-        filePath,
-        question: validationResult.data
-    });
-}
-exports.validate = validate;
-function parseToJSON(filePath, fileContent) {
-    try {
-        return (0, cake_result_1.Ok)(JSON.parse(fileContent));
-    }
-    catch (error) {
-        return (0, cake_result_1.Err)(`Invalid JSON in file ${filePath}`);
-    }
-}
 
 
 /***/ }),
@@ -7852,6 +7544,8 @@ module.exports = require("util");
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const tslib_1 = __nccwpck_require__(4351);
 tslib_1.__exportStar(__nccwpck_require__(6654), exports);
+tslib_1.__exportStar(__nccwpck_require__(7063), exports);
+tslib_1.__exportStar(__nccwpck_require__(5620), exports);
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -7925,6 +7619,61 @@ exports.BaseBlackBoxQuestion = zod_1.z.object({
     templates: exports.BlackBoxTemplatesSchema,
 });
 //# sourceMappingURL=everest.js.map
+
+/***/ }),
+
+/***/ 7063:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FsFileSystem = exports.InMemoryFileSystem = void 0;
+const path_1 = __nccwpck_require__(1017);
+const cake_result_1 = __nccwpck_require__(8569);
+const fs_1 = __nccwpck_require__(7147);
+class InMemoryFileSystem {
+    constructor(files) {
+        this.files = files;
+    }
+    readFile(filePath) {
+        const fileContent = this.files.get(filePath);
+        if (fileContent) {
+            return (0, cake_result_1.Ok)(fileContent);
+        }
+        else {
+            return (0, cake_result_1.Err)('invalid path');
+        }
+    }
+    listFilesInSameDirectory(filePath) {
+        const entries = Array.from(this.files.entries());
+        const filesInSameDirectory = entries
+            .filter(([path]) => {
+            const directory = (0, path_1.dirname)(filePath);
+            return path.startsWith(directory);
+        })
+            .map(([path]) => path);
+        return (0, cake_result_1.Ok)(filesInSameDirectory);
+    }
+}
+exports.InMemoryFileSystem = InMemoryFileSystem;
+class FsFileSystem {
+    readFile(filePath) {
+        if ((0, fs_1.existsSync)(filePath) && (0, fs_1.lstatSync)(filePath).isFile()) {
+            return (0, cake_result_1.Ok)((0, fs_1.readFileSync)(filePath, 'utf-8'));
+        }
+        else {
+            return (0, cake_result_1.Err)('invalid path');
+        }
+    }
+    listFilesInSameDirectory(filePath) {
+        const directory = (0, path_1.dirname)(filePath);
+        const files = (0, fs_1.readdirSync)(directory).map((f) => (0, path_1.join)(directory, f));
+        return (0, cake_result_1.Ok)(files);
+    }
+}
+exports.FsFileSystem = FsFileSystem;
+//# sourceMappingURL=file-system.js.map
 
 /***/ }),
 
@@ -8050,6 +7799,242 @@ exports.BaseTrueOrFalseQuestion = zod_1.z.object({
     })),
 });
 //# sourceMappingURL=true-or-false.js.map
+
+/***/ }),
+
+/***/ 859:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.validateEverest = void 0;
+const questions_1 = __nccwpck_require__(6447);
+const cake_result_1 = __nccwpck_require__(8569);
+const path = __nccwpck_require__(1017);
+function validateEverest(filePath, fileContent, fileSystem) {
+    const type = fileContent.type;
+    if (type !== 'EVEREST') {
+        return (0, cake_result_1.Err)({
+            errors: [`Not a everest exercise file expected "EVEREST". Got: ${type}`],
+            filePath,
+        });
+    }
+    const listFilesResult = fileSystem.listFilesInSameDirectory(filePath);
+    if (!listFilesResult.ok) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: [listFilesResult.error],
+        });
+    }
+    const files = listFilesResult.value;
+    const exerciseType = getExerciseType(fileContent);
+    if (exerciseType === 'blackbox') {
+        return validateBlackBox(files, filePath, fileContent);
+    }
+    const language = getWhiteboxExerciseLanguage(fileContent);
+    const validateWhiteBoxFilesResult = validateWhiteBoxFiles(files, filePath, language);
+    if (!validateWhiteBoxFilesResult.ok) {
+        return (0, cake_result_1.Err)({
+            errors: validateWhiteBoxFilesResult.error,
+            filePath,
+        });
+    }
+    const { descriptionFilePath, privateTestCasesFilePath, publicTestCasesFilePath, } = validateWhiteBoxFilesResult.value;
+    const readDescriptionFileResult = fileSystem.readFile(descriptionFilePath);
+    const readPublicTestCasesFileResult = fileSystem.readFile(publicTestCasesFilePath);
+    const readPrivateTestCasesFileResult = fileSystem.readFile(privateTestCasesFilePath);
+    if (!(readDescriptionFileResult.ok &&
+        readPublicTestCasesFileResult.ok &&
+        readPrivateTestCasesFileResult.ok)) {
+        const errors = [];
+        if (!readDescriptionFileResult.ok) {
+            errors.push(readDescriptionFileResult.error);
+        }
+        if (!readPublicTestCasesFileResult.ok) {
+            errors.push(readPublicTestCasesFileResult.error);
+        }
+        if (!readPrivateTestCasesFileResult.ok) {
+            errors.push(readPrivateTestCasesFileResult.error);
+        }
+        return (0, cake_result_1.Err)({ filePath, errors });
+    }
+    const whiteBoxValidationResult = questions_1.WhiteboxQuestionSchema.safeParse(Object.assign(Object.assign({}, fileContent), { description: readDescriptionFileResult.value, publicTestCases: readPublicTestCasesFileResult.value, privateTestCases: readPrivateTestCasesFileResult.value, type: 'whitebox', language }));
+    if (!whiteBoxValidationResult.success) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: whiteBoxValidationResult.error.issues.map(({ path: pathh, message }) => (pathh.length ? [pathh.join('/')] : []).concat(message).join(': ')),
+        });
+    }
+    return (0, cake_result_1.Ok)({
+        filePath,
+        question: whiteBoxValidationResult.data,
+    });
+}
+exports.validateEverest = validateEverest;
+function getWhiteboxExerciseLanguage(fileContent) {
+    var _a;
+    const language = fileContent.language;
+    const rempap = {
+        java: 'java17',
+    };
+    return (_a = rempap[language]) !== null && _a !== void 0 ? _a : language;
+}
+function validateBlackBox(files, filePath, fileContent) {
+    const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath);
+    if (!validateBlackBoxFilesResult.ok) {
+        return (0, cake_result_1.Err)({
+            errors: [validateBlackBoxFilesResult.error],
+            filePath,
+        });
+    }
+    const { descriptionFilePath } = validateBlackBoxFilesResult.value;
+    const blackBoxValidationResult = questions_1.BlackboxQuestionSchema.safeParse(Object.assign(Object.assign({}, fileContent), { description: descriptionFilePath, type: 'blackbox', publicTestCases: fileContent.public_cases, privateTestCases: fileContent.private_cases }));
+    if (!blackBoxValidationResult.success) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: blackBoxValidationResult.error.issues.map(({ path: pathh, message }) => (pathh.length ? [pathh.join('/')] : []).concat(message).join(': ')),
+        });
+    }
+    const question = blackBoxValidationResult.data;
+    if (Object.keys(question.templates).length <= 0) {
+        return (0, cake_result_1.Err)({
+            errors: [`No templates found for exercise ${filePath}`],
+            filePath,
+        });
+    }
+    return (0, cake_result_1.Ok)({
+        filePath,
+        question: blackBoxValidationResult.data,
+    });
+}
+function getExerciseType(fileContent) {
+    if (typeof fileContent === 'object' &&
+        fileContent &&
+        Object.hasOwn(fileContent, 'public_cases') &&
+        Object.hasOwn(fileContent, 'private_cases'))
+        return 'blackbox';
+    return 'whitebox';
+}
+function validateBlackBoxFiles(files, exerciseJsonPath) {
+    var _a;
+    const [pathToSearch] = exerciseJsonPath.split('.json');
+    const descriptionFilePath = (_a = files.find((f) => f.includes(`${pathToSearch}.md`))) !== null && _a !== void 0 ? _a : files.find((f) => f.endsWith(`.md`));
+    if (!descriptionFilePath) {
+        return (0, cake_result_1.Err)(`No description file ${pathToSearch}.md found for exercise ${exerciseJsonPath}`);
+    }
+    return (0, cake_result_1.Ok)({ descriptionFilePath });
+}
+function validateWhiteBoxFiles(files, exerciseJsonPath, language) {
+    var _a;
+    // find description file .MD
+    const [pathToSearch] = exerciseJsonPath.split('.json');
+    const descriptionFilePath = (_a = files.find((f) => f.includes(`${pathToSearch}.md`))) !== null && _a !== void 0 ? _a : files.find((f) => f.endsWith(`.md`));
+    const errors = [];
+    if (!descriptionFilePath) {
+        errors.push(`No description file ${pathToSearch}.md found for exercise ${exerciseJsonPath}`);
+    }
+    let publicTestFileName = '';
+    let privateTestFileName = '';
+    switch (language) {
+        case 'csharp': {
+            publicTestFileName = 'TestCases.cs';
+            privateTestFileName = 'PrivateTestCases.cs';
+            break;
+        }
+        case 'java17': {
+            publicTestFileName = 'TestCases.java';
+            privateTestFileName = 'PrivateTestCases.java';
+            break;
+        }
+        case 'javascript': {
+            publicTestFileName = 'test_cases.test.js';
+            privateTestFileName = 'test_cases_private.test.js';
+            break;
+        }
+        case 'nodejs': {
+            publicTestFileName = 'test_cases.test.js';
+            privateTestFileName = 'test_cases_private.test.js';
+            break;
+        }
+        case 'python': {
+            publicTestFileName = 'test_cases.py';
+            privateTestFileName = 'test_cases_private.py';
+            break;
+        }
+    }
+    const publicTestCasesFilePath = files.find((f) => !f.endsWith(privateTestFileName) && f.endsWith(publicTestFileName));
+    const privateTestCasesFilePath = files.find((f) => f.endsWith(privateTestFileName));
+    if (!privateTestCasesFilePath ||
+        !publicTestCasesFilePath ||
+        !descriptionFilePath) {
+        const dirname = path.dirname(exerciseJsonPath);
+        if (!publicTestCasesFilePath) {
+            errors.push(`No public test cases file ${path.posix.join(dirname, publicTestFileName)} found for exercise ${exerciseJsonPath}`);
+        }
+        if (!privateTestCasesFilePath) {
+            errors.push(`No private test cases file ${path.posix.join(dirname, privateTestFileName)} found for exercise ${exerciseJsonPath}`);
+        }
+        return (0, cake_result_1.Err)(errors);
+    }
+    return (0, cake_result_1.Ok)({
+        descriptionFilePath,
+        privateTestCasesFilePath,
+        publicTestCasesFilePath,
+    });
+}
+//# sourceMappingURL=validate-everest.js.map
+
+/***/ }),
+
+/***/ 5620:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.validate = void 0;
+const cake_result_1 = __nccwpck_require__(8569);
+const validate_everest_1 = __nccwpck_require__(859);
+const questions_1 = __nccwpck_require__(6654);
+function validate(filePath, fileSystem) {
+    const readFileResult = fileSystem.readFile(filePath);
+    if (!readFileResult.ok)
+        return (0, cake_result_1.Err)({
+            errors: [readFileResult.error],
+            filePath,
+        });
+    const parseToJSONResult = parseToJSON(filePath, readFileResult.value);
+    if (!parseToJSONResult.ok)
+        return (0, cake_result_1.Err)({
+            errors: [parseToJSONResult.error],
+            filePath,
+        });
+    if (parseToJSONResult.value.type === 'EVEREST') {
+        return (0, validate_everest_1.validateEverest)(filePath, parseToJSONResult.value, fileSystem);
+    }
+    const validationResult = questions_1.DatabaseQuestionSchema.safeParse(parseToJSONResult.value);
+    if (!validationResult.success) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: validationResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': ')),
+        });
+    }
+    return (0, cake_result_1.Ok)({
+        filePath,
+        question: validationResult.data,
+    });
+}
+exports.validate = validate;
+function parseToJSON(filePath, fileContent) {
+    try {
+        return (0, cake_result_1.Ok)(JSON.parse(fileContent));
+    }
+    catch (error) {
+        return (0, cake_result_1.Err)(`Invalid JSON in file ${filePath}`);
+    }
+}
+//# sourceMappingURL=validate.js.map
 
 /***/ })
 
