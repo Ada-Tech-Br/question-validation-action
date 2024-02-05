@@ -1,11 +1,16 @@
 import { validateEverest } from '../src/validate-everest'
 import { InMemoryFileSystem } from '../src/lib/file-system'
-import { Err } from 'cake-result'
+import { Err, InferErrResult } from 'cake-result'
 import { readFileSync } from 'fs'
 import path from 'path'
 
 const validfile = readFileSync(
   path.join(__dirname, './data/blackbox.json'),
+  'utf-8'
+)
+
+const whiteboxExerciseFile = readFileSync(
+  path.join(__dirname, './data/whitebox/be_jv_002_02.json'),
   'utf-8'
 )
 
@@ -18,6 +23,8 @@ describe('validateEverest', () => {
     files.set('/path/java/markdown/exercise.json', validfile)
     files.set('/path/java/valid.json', validfile)
     files.set('/path/java/valid.md', '## this is a markdown file')
+    files.set('/path/java/whitebox/valid.json', whiteboxExerciseFile)
+    files.set('/path/java/whitebox/markdown/valid.json', whiteboxExerciseFile)
 
     fileSystem = new InMemoryFileSystem(files)
   })
@@ -75,6 +82,28 @@ describe('validateEverest', () => {
         fileSystem
       )
       expect(result.ok).toBe(true)
+    })
+  })
+
+  describe('whitebox', () => {
+    it('should validate missing text files', () => {
+      const filePath = '/path/java/whitebox/markdown/valid.json'
+      const result = validateEverest(
+        filePath,
+        JSON.parse(whiteboxExerciseFile),
+        fileSystem
+      ) as InferErrResult<ReturnType<typeof validateEverest>>
+
+      expect(result.ok).toBe(false)
+      expect(result.error.errors).toContain(
+        'No description file /path/java/whitebox/markdown/valid.md found for exercise /path/java/whitebox/markdown/valid.json'
+      )
+      expect(result.error.errors).toContain(
+        'No public test cases file /path/java/whitebox/markdown/TestCases.java found for exercise /path/java/whitebox/markdown/valid.json'
+      )
+      expect(result.error.errors).toContain(
+        'No private test cases file /path/java/whitebox/markdown/PrivateTestCases.java found for exercise /path/java/whitebox/markdown/valid.json'
+      )
     })
   })
 })

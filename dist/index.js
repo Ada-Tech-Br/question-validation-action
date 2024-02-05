@@ -7506,14 +7506,18 @@ exports.run = run;
 /***/ }),
 
 /***/ 6277:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validateEverest = void 0;
 const questions_1 = __nccwpck_require__(6447);
 const cake_result_1 = __nccwpck_require__(8569);
+const path_1 = __importDefault(__nccwpck_require__(1017));
 function validateEverest(filePath, fileContent, fileSystem) {
     const type = fileContent.type;
     if (type !== 'EVEREST') {
@@ -7534,12 +7538,60 @@ function validateEverest(filePath, fileContent, fileSystem) {
     if (exerciseType === 'blackbox') {
         return validateBlackBox(files, filePath, fileContent);
     }
-    return (0, cake_result_1.Err)({
+    const language = getWhiteboxExerciseLanguage(fileContent);
+    const validateWhiteBoxFilesResult = validateWhiteBoxFiles(files, filePath, language);
+    if (!validateWhiteBoxFilesResult.ok) {
+        return (0, cake_result_1.Err)({
+            errors: validateWhiteBoxFilesResult.error,
+            filePath
+        });
+    }
+    const { descriptionFilePath, privateTestCasesFilePath, publicTestCasesFilePath } = validateWhiteBoxFilesResult.value;
+    const readDescriptionFileResult = fileSystem.readFile(descriptionFilePath);
+    const readPublicTestCasesFileResult = fileSystem.readFile(publicTestCasesFilePath);
+    const readPrivateTestCasesFileResult = fileSystem.readFile(privateTestCasesFilePath);
+    if (!(readDescriptionFileResult.ok &&
+        readPublicTestCasesFileResult.ok &&
+        readPrivateTestCasesFileResult.ok)) {
+        const errors = [];
+        if (!readDescriptionFileResult.ok) {
+            errors.push(readDescriptionFileResult.error);
+        }
+        if (!readPublicTestCasesFileResult.ok) {
+            errors.push(readPublicTestCasesFileResult.error);
+        }
+        if (!readPrivateTestCasesFileResult.ok) {
+            errors.push(readPrivateTestCasesFileResult.error);
+        }
+        return (0, cake_result_1.Err)({ filePath, errors });
+    }
+    const whiteBoxValidationResult = questions_1.WhiteboxQuestionSchema.safeParse({
+        ...fileContent,
+        description: readDescriptionFileResult.value,
+        publicTestCases: readPublicTestCasesFileResult.value,
+        privateTestCases: readPrivateTestCasesFileResult.value,
+        type: 'whitebox',
+        language
+    });
+    if (!whiteBoxValidationResult.success) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: whiteBoxValidationResult.error.issues.map(({ path: pathh, message }) => (pathh.length ? [pathh.join('/')] : []).concat(message).join(': '))
+        });
+    }
+    return (0, cake_result_1.Ok)({
         filePath,
-        errors: [`Not a everest exercise file expected "EVEREST". Got: ${type}`]
+        question: whiteBoxValidationResult.data
     });
 }
 exports.validateEverest = validateEverest;
+function getWhiteboxExerciseLanguage(fileContent) {
+    const language = fileContent.language;
+    const rempap = {
+        java: 'java17'
+    };
+    return rempap[language] ?? language;
+}
 function validateBlackBox(files, filePath, fileContent) {
     const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath);
     if (!validateBlackBoxFilesResult.ok) {
@@ -7559,7 +7611,7 @@ function validateBlackBox(files, filePath, fileContent) {
     if (!blackBoxValidationResult.success) {
         return (0, cake_result_1.Err)({
             filePath,
-            errors: blackBoxValidationResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '))
+            errors: blackBoxValidationResult.error.issues.map(({ path: pathh, message }) => (pathh.length ? [pathh.join('/')] : []).concat(message).join(': '))
         });
     }
     const question = blackBoxValidationResult.data;
@@ -7590,6 +7642,64 @@ function validateBlackBoxFiles(files, exerciseJsonPath) {
         return (0, cake_result_1.Err)(`No description file ${pathToSearch}.md found for exercise ${exerciseJsonPath}`);
     }
     return (0, cake_result_1.Ok)({ descriptionFilePath });
+}
+function validateWhiteBoxFiles(files, exerciseJsonPath, language) {
+    // find description file .MD
+    const [pathToSearch] = exerciseJsonPath.split('.json');
+    const descriptionFilePath = files.find(f => f.includes(`${pathToSearch}.md`)) ??
+        files.find(f => f.endsWith(`.md`));
+    const errors = [];
+    if (!descriptionFilePath) {
+        errors.push(`No description file ${pathToSearch}.md found for exercise ${exerciseJsonPath}`);
+    }
+    let publicTestFileName = '';
+    let privateTestFileName = '';
+    switch (language) {
+        case 'csharp': {
+            publicTestFileName = 'TestCases.cs';
+            privateTestFileName = 'PrivateTestCases.cs';
+            break;
+        }
+        case 'java17': {
+            publicTestFileName = 'TestCases.java';
+            privateTestFileName = 'PrivateTestCases.java';
+            break;
+        }
+        case 'javascript': {
+            publicTestFileName = 'test_cases.test.js';
+            privateTestFileName = 'test_cases_private.test.js';
+            break;
+        }
+        case 'nodejs': {
+            publicTestFileName = 'test_cases.test.js';
+            privateTestFileName = 'test_cases_private.test.js';
+            break;
+        }
+        case 'python': {
+            publicTestFileName = 'test_cases.py';
+            privateTestFileName = 'test_cases_private.py';
+            break;
+        }
+    }
+    const publicTestCasesFilePath = files.find(f => !f.endsWith(privateTestFileName) && f.endsWith(publicTestFileName));
+    const privateTestCasesFilePath = files.find(f => f.endsWith(privateTestFileName));
+    if (!privateTestCasesFilePath ||
+        !publicTestCasesFilePath ||
+        !descriptionFilePath) {
+        const dirname = path_1.default.dirname(exerciseJsonPath);
+        if (!publicTestCasesFilePath) {
+            errors.push(`No public test cases file ${path_1.default.posix.join(dirname, publicTestFileName)} found for exercise ${exerciseJsonPath}`);
+        }
+        if (!privateTestCasesFilePath) {
+            errors.push(`No private test cases file ${path_1.default.posix.join(dirname, privateTestFileName)} found for exercise ${exerciseJsonPath}`);
+        }
+        return (0, cake_result_1.Err)(errors);
+    }
+    return (0, cake_result_1.Ok)({
+        descriptionFilePath,
+        privateTestCasesFilePath,
+        publicTestCasesFilePath
+    });
 }
 
 

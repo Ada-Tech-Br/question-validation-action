@@ -1,0 +1,24 @@
+{
+  "SKU": "BE-JV-002",
+  "interpreter": 1,
+  "type": "EVEREST",
+  "classification": [
+    {
+      "knowledgeArea": "Orientação a Objetos",
+      "category": "Herança",
+      "subCategory": ""
+    }
+  ],
+  "language": "java",
+  "tagsOrConcepts": [
+    "orientação a objetos",
+    "métodos",
+    "propriedades",
+    "herança"
+  ],
+  "name": "Orientação a Objetos 2 - Métodos e Herança",
+  "templates": {
+    "java17": "public class ContaBancaria { \n\tpublic String agencia; \n\tpublic String conta; \n}"
+  },
+  "id": "eebdefcd-536a-4efa-bc88-7c13b56dd595"
+}
