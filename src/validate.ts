@@ -1,25 +1,25 @@
 import {
   DatabaseQuestionSchema,
-  BlackboxQuestionFileSchema,
-  WhiteboxQuestionFileSchema
+  DatabaseQuestion
 } from '@ada-tech-br/questions'
 import { IFileSystem } from './lib/file-system'
 import { Err, Ok, Result } from 'cake-result'
+import { validateEverest } from './validate-everest'
 
 type ValidationError = {
   filePath: string
   errors: string[]
 }
 
+type ValidationOutput = {
+  filePath: string
+  question: DatabaseQuestion
+}
+
 export function validate(
   filePath: string,
   fileSystem: IFileSystem
-): Result<
-  {
-    filePath: string
-  },
-  ValidationError
-> {
+): Result<ValidationOutput, ValidationError> {
   const readFileResult = fileSystem.readFile(filePath)
   if (!readFileResult.ok)
     return Err({
@@ -35,29 +35,7 @@ export function validate(
     })
 
   if ((parseToJSONResult.value as { type: string }).type === 'EVEREST') {
-    const whiteboxResult = WhiteboxQuestionFileSchema.safeParse(
-      parseToJSONResult.value
-    )
-    const blackboxResult = BlackboxQuestionFileSchema.safeParse(
-      parseToJSONResult.value
-    )
-
-    if (!whiteboxResult.success && !blackboxResult.success) {
-      const whiteboxErrors = whiteboxResult.error.issues.map(
-        ({ path, message }) =>
-          (path.length ? [path.join('/')] : []).concat(message).join(': ')
-      )
-
-      const blackboxErrors = blackboxResult.error.issues.map(
-        ({ path, message }) =>
-          (path.length ? [path.join('/')] : []).concat(message).join(': ')
-      )
-
-      return Err({
-        filePath,
-        errors: whiteboxErrors.concat(blackboxErrors)
-      })
-    }
+    return validateEverest(filePath, parseToJSONResult.value, fileSystem)
   }
 
   const validationResult = DatabaseQuestionSchema.safeParse(
@@ -74,7 +52,8 @@ export function validate(
   }
 
   return Ok({
-    filePath
+    filePath,
+    question: validationResult.data
   })
 }
 

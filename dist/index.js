@@ -7505,6 +7505,87 @@ exports.run = run;
 
 /***/ }),
 
+/***/ 6277:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.validateEverest = void 0;
+const questions_1 = __nccwpck_require__(6447);
+const cake_result_1 = __nccwpck_require__(8569);
+function validateEverest(filePath, fileContent, fileSystem) {
+    const type = fileContent.type;
+    if (type !== 'EVEREST') {
+        return (0, cake_result_1.Err)({
+            errors: [`Not a everest exercise file expected "EVEREST". Got: ${type}`],
+            filePath
+        });
+    }
+    const listFilesResult = fileSystem.listFilesInSameDirectory(filePath);
+    if (!listFilesResult.ok) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: [listFilesResult.error]
+        });
+    }
+    const files = listFilesResult.value;
+    const exerciseType = getExerciseType(fileContent);
+    if (exerciseType === 'blackbox') {
+        const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath);
+        if (!validateBlackBoxFilesResult.ok) {
+            return (0, cake_result_1.Err)({
+                errors: [validateBlackBoxFilesResult.error],
+                filePath
+            });
+        }
+        const { descriptionFilePath } = validateBlackBoxFilesResult.value;
+        const blackBoxValidationResult = questions_1.BlackboxQuestionSchema.safeParse({
+            ...fileContent,
+            description: descriptionFilePath,
+            type: 'blackbox',
+            publicTestCases: fileContent.public_cases,
+            privateTestCases: fileContent
+                .private_cases
+        });
+        if (!blackBoxValidationResult.success) {
+            return (0, cake_result_1.Err)({
+                filePath,
+                errors: blackBoxValidationResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '))
+            });
+        }
+        return (0, cake_result_1.Ok)({
+            filePath,
+            question: blackBoxValidationResult.data
+        });
+    }
+    return (0, cake_result_1.Err)({
+        filePath,
+        errors: [`Not a everest exercise file expected "EVEREST". Got: ${type}`]
+    });
+}
+exports.validateEverest = validateEverest;
+function getExerciseType(fileContent) {
+    if (typeof fileContent === 'object' &&
+        fileContent &&
+        Object.hasOwn(fileContent, 'public_cases') &&
+        Object.hasOwn(fileContent, 'private_cases'))
+        return 'blackbox';
+    return 'whitebox';
+}
+function validateBlackBoxFiles(files, exerciseJsonPath) {
+    const [pathToSearch] = exerciseJsonPath.split('.json');
+    const descriptionFilePath = files.find(f => f.includes(`${pathToSearch}.md`)) ??
+        files.find(f => f.endsWith(`.md`));
+    if (!descriptionFilePath) {
+        return (0, cake_result_1.Err)(`No description file ${pathToSearch}.md found for exercise ${exerciseJsonPath}`);
+    }
+    return (0, cake_result_1.Ok)({ descriptionFilePath });
+}
+
+
+/***/ }),
+
 /***/ 4953:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -7514,6 +7595,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validate = void 0;
 const questions_1 = __nccwpck_require__(6447);
 const cake_result_1 = __nccwpck_require__(8569);
+const validate_everest_1 = __nccwpck_require__(6277);
 function validate(filePath, fileSystem) {
     const readFileResult = fileSystem.readFile(filePath);
     if (!readFileResult.ok)
@@ -7528,16 +7610,7 @@ function validate(filePath, fileSystem) {
             filePath
         });
     if (parseToJSONResult.value.type === 'EVEREST') {
-        const whiteboxResult = questions_1.WhiteboxQuestionFileSchema.safeParse(parseToJSONResult.value);
-        const blackboxResult = questions_1.BlackboxQuestionFileSchema.safeParse(parseToJSONResult.value);
-        if (!whiteboxResult.success && !blackboxResult.success) {
-            const whiteboxErrors = whiteboxResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '));
-            const blackboxErrors = blackboxResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '));
-            return (0, cake_result_1.Err)({
-                filePath,
-                errors: whiteboxErrors.concat(blackboxErrors)
-            });
-        }
+        return (0, validate_everest_1.validateEverest)(filePath, parseToJSONResult.value, fileSystem);
     }
     const validationResult = questions_1.DatabaseQuestionSchema.safeParse(parseToJSONResult.value);
     if (!validationResult.success) {
@@ -7547,7 +7620,8 @@ function validate(filePath, fileSystem) {
         });
     }
     return (0, cake_result_1.Ok)({
-        filePath
+        filePath,
+        question: validationResult.data
     });
 }
 exports.validate = validate;
