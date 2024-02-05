@@ -53,6 +53,20 @@ describe('validateEverest', () => {
       )
     })
 
+    it('should validate missing templates', () => {
+      const filePath = '/path/java/valid.json'
+      const content = JSON.parse(validfile)
+      content.templates = {}
+
+      const result = validateEverest(filePath, content, fileSystem)
+      expect(result).toEqual(
+        Err({
+          filePath,
+          errors: [`No templates found for exercise /path/java/valid.json`]
+        })
+      )
+    })
+
     it('should validate a blackbox exercise', () => {
       const filePath = '/path/java/valid.json'
       const result = validateEverest(

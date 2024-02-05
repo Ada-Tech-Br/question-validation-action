@@ -27,6 +27,7 @@ export function validateEverest(
       filePath
     })
   }
+
   const listFilesResult = fileSystem.listFilesInSameDirectory(filePath)
   if (!listFilesResult.ok) {
     return Err({
@@ -40,43 +41,59 @@ export function validateEverest(
   const exerciseType = getExerciseType(fileContent)
 
   if (exerciseType === 'blackbox') {
-    const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath)
-    if (!validateBlackBoxFilesResult.ok) {
-      return Err({
-        errors: [validateBlackBoxFilesResult.error],
-        filePath
-      })
-    }
-
-    const { descriptionFilePath } = validateBlackBoxFilesResult.value
-
-    const blackBoxValidationResult = BlackboxQuestionSchema.safeParse({
-      ...(fileContent as { [key: string]: unknown }),
-      description: descriptionFilePath,
-      type: 'blackbox',
-      publicTestCases: (fileContent as { public_cases: unknown }).public_cases,
-      privateTestCases: (fileContent as { private_cases: unknown })
-        .private_cases
-    })
-
-    if (!blackBoxValidationResult.success) {
-      return Err({
-        filePath,
-        errors: blackBoxValidationResult.error.issues.map(({ path, message }) =>
-          (path.length ? [path.join('/')] : []).concat(message).join(': ')
-        )
-      })
-    }
-
-    return Ok({
-      filePath,
-      question: blackBoxValidationResult.data
-    })
+    return validateBlackBox(files, filePath, fileContent)
   }
 
   return Err({
     filePath,
     errors: [`Not a everest exercise file expected "EVEREST". Got: ${type}`]
+  })
+}
+
+function validateBlackBox(
+  files: string[],
+  filePath: string,
+  fileContent: unknown
+): Result<ValidationOutput, ValidationError> {
+  const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath)
+  if (!validateBlackBoxFilesResult.ok) {
+    return Err({
+      errors: [validateBlackBoxFilesResult.error],
+      filePath
+    })
+  }
+
+  const { descriptionFilePath } = validateBlackBoxFilesResult.value
+
+  const blackBoxValidationResult = BlackboxQuestionSchema.safeParse({
+    ...(fileContent as { [key: string]: unknown }),
+    description: descriptionFilePath,
+    type: 'blackbox',
+    publicTestCases: (fileContent as { public_cases: unknown }).public_cases,
+    privateTestCases: (fileContent as { private_cases: unknown }).private_cases
+  })
+
+  if (!blackBoxValidationResult.success) {
+    return Err({
+      filePath,
+      errors: blackBoxValidationResult.error.issues.map(({ path, message }) =>
+        (path.length ? [path.join('/')] : []).concat(message).join(': ')
+      )
+    })
+  }
+
+  const question = blackBoxValidationResult.data
+
+  if (Object.keys(question.templates).length <= 0) {
+    return Err({
+      errors: [`No templates found for exercise ${filePath}`],
+      filePath
+    })
+  }
+
+  return Ok({
+    filePath,
+    question: blackBoxValidationResult.data
   })
 }
 

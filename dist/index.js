@@ -7532,32 +7532,7 @@ function validateEverest(filePath, fileContent, fileSystem) {
     const files = listFilesResult.value;
     const exerciseType = getExerciseType(fileContent);
     if (exerciseType === 'blackbox') {
-        const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath);
-        if (!validateBlackBoxFilesResult.ok) {
-            return (0, cake_result_1.Err)({
-                errors: [validateBlackBoxFilesResult.error],
-                filePath
-            });
-        }
-        const { descriptionFilePath } = validateBlackBoxFilesResult.value;
-        const blackBoxValidationResult = questions_1.BlackboxQuestionSchema.safeParse({
-            ...fileContent,
-            description: descriptionFilePath,
-            type: 'blackbox',
-            publicTestCases: fileContent.public_cases,
-            privateTestCases: fileContent
-                .private_cases
-        });
-        if (!blackBoxValidationResult.success) {
-            return (0, cake_result_1.Err)({
-                filePath,
-                errors: blackBoxValidationResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '))
-            });
-        }
-        return (0, cake_result_1.Ok)({
-            filePath,
-            question: blackBoxValidationResult.data
-        });
+        return validateBlackBox(files, filePath, fileContent);
     }
     return (0, cake_result_1.Err)({
         filePath,
@@ -7565,6 +7540,40 @@ function validateEverest(filePath, fileContent, fileSystem) {
     });
 }
 exports.validateEverest = validateEverest;
+function validateBlackBox(files, filePath, fileContent) {
+    const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath);
+    if (!validateBlackBoxFilesResult.ok) {
+        return (0, cake_result_1.Err)({
+            errors: [validateBlackBoxFilesResult.error],
+            filePath
+        });
+    }
+    const { descriptionFilePath } = validateBlackBoxFilesResult.value;
+    const blackBoxValidationResult = questions_1.BlackboxQuestionSchema.safeParse({
+        ...fileContent,
+        description: descriptionFilePath,
+        type: 'blackbox',
+        publicTestCases: fileContent.public_cases,
+        privateTestCases: fileContent.private_cases
+    });
+    if (!blackBoxValidationResult.success) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: blackBoxValidationResult.error.issues.map(({ path, message }) => (path.length ? [path.join('/')] : []).concat(message).join(': '))
+        });
+    }
+    const question = blackBoxValidationResult.data;
+    if (Object.keys(question.templates).length <= 0) {
+        return (0, cake_result_1.Err)({
+            errors: [`No templates found for exercise ${filePath}`],
+            filePath
+        });
+    }
+    return (0, cake_result_1.Ok)({
+        filePath,
+        question: blackBoxValidationResult.data
+    });
+}
 function getExerciseType(fileContent) {
     if (typeof fileContent === 'object' &&
         fileContent &&
