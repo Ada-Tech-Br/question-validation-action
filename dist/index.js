@@ -7377,6 +7377,73 @@ exports.normalizePath = normalizePath;
 
 /***/ }),
 
+/***/ 9074:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.publish = void 0;
+const cake_result_1 = __nccwpck_require__(8569);
+async function publish(input) {
+    const { question, token, url } = input;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            body: JSON.stringify(question),
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}`
+            }
+        });
+        if (!response.ok) {
+            return (0, cake_result_1.Err)({
+                question: question,
+                error: getErrorMessageByStatusCode(response)
+            });
+        }
+        return (0, cake_result_1.Ok)({ question });
+    }
+    catch (error) {
+        return (0, cake_result_1.Err)({
+            question: question,
+            error: `Failed to publish question ${question.id}: ${error}`
+        });
+    }
+}
+exports.publish = publish;
+function getErrorMessageByStatusCode(response) {
+    if (response.status === 404) {
+        return {
+            type: 'not-found',
+            status: response.status,
+            message: 'Not found'
+        };
+    }
+    if (response.status === 401) {
+        return {
+            type: 'unauthorized',
+            status: response.status,
+            message: 'Unauthorized'
+        };
+    }
+    if (response.status === 500) {
+        return {
+            type: 'internal-server-error',
+            status: response.status,
+            message: 'Internal server error'
+        };
+    }
+    return {
+        type: 'unknown-error',
+        status: response.status,
+        message: 'Unknown error occurred'
+    };
+}
+
+
+/***/ }),
+
 /***/ 399:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -7414,12 +7481,16 @@ const core = __importStar(__nccwpck_require__(2186));
 const zod_1 = __importDefault(__nccwpck_require__(3301));
 const questions_1 = __nccwpck_require__(6447);
 const parse_paths_1 = __nccwpck_require__(1672);
-const fileSystem = new questions_1.FsFileSystem();
+const publish_1 = __nccwpck_require__(9074);
+const DEFAULT_FILE_SYSTEM = new questions_1.FsFileSystem();
+const ADA_ADMIN_TOKEN = process.env.ADA_ADMIN_TOKEN;
+const ADA_ADMIN_PUBLISH_QUESTION_URL = process.env.ADA_ADMIN_PUBLISH_QUESTION_URL;
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
-async function run() {
+async function run(fileSystem = DEFAULT_FILE_SYSTEM) {
+    const shouldPublish = core.getBooleanInput('PUBLISH', { required: false });
     const rawInputFiles = core.getInput('INPUT_FILES', { required: true });
     const input = zod_1.default.array(zod_1.default.string()).parse(JSON.parse(rawInputFiles));
     const jsonFiles = (0, parse_paths_1.parsePaths)(input);
@@ -7441,6 +7512,35 @@ async function run() {
     }
     if (errors.length > 0) {
         core.setFailed(`Found ${errors.length} invalid files.`);
+    }
+    if (!shouldPublish && okResults.length <= 0) {
+        return;
+    }
+    if (!ADA_ADMIN_TOKEN || !ADA_ADMIN_PUBLISH_QUESTION_URL) {
+        if (!ADA_ADMIN_TOKEN) {
+            core.setFailed('Missing environment variable: ADA_ADMIN_TOKEN');
+        }
+        if (!ADA_ADMIN_PUBLISH_QUESTION_URL) {
+            core.setFailed('Missing environment variable: ADA_ADMIN_PUBLISH_QUESTION_URL');
+        }
+        return;
+    }
+    core.info(`Publishing ${okResults.length} valid files to question bank.`);
+    const batch = okResults.map(result => async () => await (0, publish_1.publish)({
+        question: result.value.question,
+        token: ADA_ADMIN_TOKEN,
+        url: ADA_ADMIN_PUBLISH_QUESTION_URL
+    }));
+    const resultsOfPublish = await Promise.all(batch.map(async (fn) => await fn()));
+    const errorsOfPublish = resultsOfPublish.filter((result) => !result.ok);
+    const okResultsOfPublish = resultsOfPublish.filter((result) => result.ok);
+    core.info(`Published ${okResultsOfPublish.length} valid files.`);
+    core.info(`Failed to publish ${errorsOfPublish.length} valid files.`);
+    for (const okResult of okResultsOfPublish) {
+        core.info(`✅ Published question ${okResult.value.question.id}.`);
+    }
+    for (const error of errorsOfPublish) {
+        core.error(`❌ Failed to publish question ${error.error.question.id}: ${error.error.error}`);
     }
 }
 exports.run = run;
