@@ -7513,7 +7513,7 @@ async function run(fileSystem = DEFAULT_FILE_SYSTEM) {
     if (errors.length > 0) {
         core.setFailed(`Found ${errors.length} invalid files.`);
     }
-    if (!shouldPublish && okResults.length <= 0) {
+    if (!shouldPublish || okResults.length <= 0) {
         return;
     }
     if (!ADA_ADMIN_TOKEN || !ADA_ADMIN_PUBLISH_QUESTION_URL) {
@@ -7540,7 +7540,11 @@ async function run(fileSystem = DEFAULT_FILE_SYSTEM) {
         core.info(`✅ Published question ${okResult.value.question.id}.`);
     }
     for (const error of errorsOfPublish) {
-        core.error(`❌ Failed to publish question ${error.error.question.id}: ${error.error.error}`);
+        core.error(`❌ Failed to publish question ${error.error.question.id}:`);
+        core.error(JSON.stringify(error.error.error));
+    }
+    if (errorsOfPublish.length > 0) {
+        core.setFailed(`Failed to publish ${errorsOfPublish.length} valid files.`);
     }
 }
 exports.run = run;
