@@ -7388,10 +7388,9 @@ const cake_result_1 = __nccwpck_require__(8569);
 async function publish(input) {
     const { question, token, url } = input;
     try {
-        console.log(Buffer.from(JSON.stringify(input)).toString('base64'));
         const response = await fetch(url, {
             method: 'POST',
-            body: JSON.stringify(question),
+            body: JSON.stringify({ question }),
             headers: {
                 'Content-Type': 'application/json',
                 apikey: token

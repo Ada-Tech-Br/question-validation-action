@@ -10,18 +10,14 @@ type PublishQuestionInput = {
 export async function publish(input: PublishQuestionInput) {
     const { question, token, url } = input
     try {
-        console.log(Buffer.from(JSON.stringify({token, url})).toString('base64'))
         const response = await fetch(url, {
             method: 'POST',
-            body: JSON.stringify(question),
+            body: JSON.stringify({question}),
             headers: {
                 'Content-Type': 'application/json',
                 apikey: token
             },
         });
-
-
-
 
         if (!response.ok) {
             return Err({
