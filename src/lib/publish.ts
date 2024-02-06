@@ -15,7 +15,7 @@ export async function publish(input: PublishQuestionInput) {
             body: JSON.stringify(question),
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': `${token}`
+                'apikey': token
             }
         });
 

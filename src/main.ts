@@ -71,6 +71,7 @@ export async function run(
   }
 
   core.info(`Publishing ${okResults.length} valid files to question bank.`)
+  core.info(`Using token: ${ADA_ADMIN_TOKEN}`)
 
   const batch = okResults.map(
     result => async () =>
