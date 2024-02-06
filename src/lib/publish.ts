@@ -62,7 +62,7 @@ function getErrorMessageByStatusCode(response: Response): {
         return {
             type: 'internal-server-error',
             status: response.status,
-            message: 'Internal server error'
+            message: JSON.stringify(response.body)
         };
     }
 
