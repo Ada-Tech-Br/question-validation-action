@@ -7393,7 +7393,7 @@ async function publish(input) {
             body: JSON.stringify(question),
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `${token}`
+                'apikey': `${token}`
             }
         });
         if (!response.ok) {
