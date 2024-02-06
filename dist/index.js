@@ -7393,7 +7393,7 @@ async function publish(input) {
             body: JSON.stringify(question),
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': `${token}`
+                'apikey': token
             }
         });
         if (!response.ok) {
@@ -7526,6 +7526,8 @@ async function run(fileSystem = DEFAULT_FILE_SYSTEM) {
         return;
     }
     core.info(`Publishing ${okResults.length} valid files to question bank.`);
+    core.info(`Using token: ${ADA_ADMIN_TOKEN}`);
+    core.info(`Using token: ${ADA_ADMIN_TOKEN.length}`);
     const batch = okResults.map(result => async () => await (0, publish_1.publish)({
         question: result.value.question,
         token: ADA_ADMIN_TOKEN,
