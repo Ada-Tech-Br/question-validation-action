@@ -7491,8 +7491,12 @@ const ADA_ADMIN_PUBLISH_QUESTION_URL = process.env.ADA_ADMIN_PUBLISH_QUESTION_UR
  */
 async function run(fileSystem = DEFAULT_FILE_SYSTEM) {
     const shouldPublish = core.getBooleanInput('PUBLISH', { required: false });
-    const rawInputFiles = core.getInput('INPUT_FILES', { required: true });
-    const input = zod_1.default.array(zod_1.default.string()).parse(JSON.parse(rawInputFiles));
+    const readFileResult = fileSystem.readFile('input.txt');
+    if (!readFileResult.ok) {
+        core.setFailed(`Failed to read input file: ${readFileResult.error}`);
+        return;
+    }
+    const input = zod_1.default.array(zod_1.default.string()).parse(JSON.parse(readFileResult.value));
     const jsonFiles = (0, parse_paths_1.parsePaths)(input);
     core.info(`Found ${input.length} files.`);
     core.info(`Found ${jsonFiles.length} JSON files.`);

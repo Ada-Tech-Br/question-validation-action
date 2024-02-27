@@ -18,9 +18,13 @@ export async function run(
   fileSystem: IFileSystem = DEFAULT_FILE_SYSTEM
 ): Promise<void> {
   const shouldPublish = core.getBooleanInput('PUBLISH', { required: false })
-  const rawInputFiles = core.getInput('INPUT_FILES', { required: true })
+  const readFileResult = fileSystem.readFile('input.txt')
+  if (!readFileResult.ok) {
+    core.setFailed(`Failed to read input file: ${readFileResult.error}`)
+    return
+  }
 
-  const input = z.array(z.string()).parse(JSON.parse(rawInputFiles))
+  const input = z.array(z.string()).parse(JSON.parse(readFileResult.value))
   const jsonFiles = parsePaths(input)
 
   core.info(`Found ${input.length} files.`)
