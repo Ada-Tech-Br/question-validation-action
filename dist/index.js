@@ -7923,6 +7923,7 @@ const questions_1 = __nccwpck_require__(6447);
 const cake_result_1 = __nccwpck_require__(8569);
 const path = __nccwpck_require__(1017);
 function validateEverest(filePath, fileContent, fileSystem) {
+    var _a;
     const type = fileContent.type;
     if (type !== 'EVEREST') {
         return (0, cake_result_1.Err)({
@@ -7940,7 +7941,7 @@ function validateEverest(filePath, fileContent, fileSystem) {
     const files = listFilesResult.value;
     const exerciseType = getExerciseType(fileContent);
     if (exerciseType === 'blackbox') {
-        return validateBlackBox(files, filePath, fileContent);
+        return validateBlackBox(files, filePath, fileContent, fileSystem);
     }
     const language = getWhiteboxExerciseLanguage(fileContent);
     const validateWhiteBoxFilesResult = validateWhiteBoxFiles(files, filePath, language);
@@ -7969,7 +7970,14 @@ function validateEverest(filePath, fileContent, fileSystem) {
         }
         return (0, cake_result_1.Err)({ filePath, errors });
     }
-    const whiteBoxValidationResult = questions_1.WhiteboxQuestionSchema.safeParse(Object.assign(Object.assign({}, fileContent), { description: readDescriptionFileResult.value, publicTestCases: readPublicTestCasesFileResult.value, privateTestCases: readPrivateTestCasesFileResult.value, type: 'whitebox', language }));
+    const template = (_a = fileContent.templates) === null || _a === void 0 ? void 0 : _a[language];
+    if (!template) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: [`No template found for language ${language}`],
+        });
+    }
+    const whiteBoxValidationResult = questions_1.WhiteboxQuestionSchema.safeParse(Object.assign(Object.assign({}, fileContent), { description: readDescriptionFileResult.value, publicTestCases: readPublicTestCasesFileResult.value, privateTestCases: readPrivateTestCasesFileResult.value, type: 'whitebox', language, template: template }));
     if (!whiteBoxValidationResult.success) {
         return (0, cake_result_1.Err)({
             filePath,
@@ -7990,7 +7998,7 @@ function getWhiteboxExerciseLanguage(fileContent) {
     };
     return (_a = rempap[language]) !== null && _a !== void 0 ? _a : language;
 }
-function validateBlackBox(files, filePath, fileContent) {
+function validateBlackBox(files, filePath, fileContent, fileSystem) {
     const validateBlackBoxFilesResult = validateBlackBoxFiles(files, filePath);
     if (!validateBlackBoxFilesResult.ok) {
         return (0, cake_result_1.Err)({
@@ -7999,7 +8007,14 @@ function validateBlackBox(files, filePath, fileContent) {
         });
     }
     const { descriptionFilePath } = validateBlackBoxFilesResult.value;
-    const blackBoxValidationResult = questions_1.BlackboxQuestionSchema.safeParse(Object.assign(Object.assign({}, fileContent), { description: descriptionFilePath, type: 'blackbox', publicTestCases: fileContent.public_cases, privateTestCases: fileContent.private_cases }));
+    const descriptionFileContent = fileSystem.readFile(descriptionFilePath);
+    if (!descriptionFileContent.ok) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: [descriptionFileContent.error],
+        });
+    }
+    const blackBoxValidationResult = questions_1.BlackboxQuestionSchema.safeParse(Object.assign(Object.assign({}, fileContent), { description: descriptionFileContent.value, type: 'blackbox', publicTestCases: fileContent.public_cases, privateTestCases: fileContent.private_cases }));
     if (!blackBoxValidationResult.success) {
         return (0, cake_result_1.Err)({
             filePath,
