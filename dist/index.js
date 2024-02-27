@@ -7352,9 +7352,12 @@ exports.parsePaths = parsePaths;
 function normalizePath(input) {
     let converted = input.replace(/\\303\\255/g, 'í');
     converted = converted.replace(/\\303\\241/g, 'á');
+    converted = converted.replace(/\\303\\201/g, 'Á');
     converted = converted.replace(/\\303\\251/g, 'é');
+    converted = converted.replace(/\\303\\211/g, 'É');
     converted = converted.replace(/\\303\\255/g, 'í');
     converted = converted.replace(/\\303\\263/g, 'ó');
+    converted = converted.replace(/\\303\\223/g, 'Ó');
     converted = converted.replace(/\\303\\272/g, 'ú');
     converted = converted.replace(/\\303\\241/g, 'Á');
     converted = converted.replace(/\\303\\251/g, 'É');
