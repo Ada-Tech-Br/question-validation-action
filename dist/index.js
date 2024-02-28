@@ -7841,7 +7841,7 @@ exports.BaseMultipleChoiceQuestion = zod_1.z.object({
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DatabaseQuestionSchema = exports.BlackboxQuestionSchema = exports.WhiteboxQuestionSchema = exports.TrueOrFalseQuestionSchema = exports.MultipleChoiceQuestionSchema = exports.GapQuestionSchema = exports.BlackboxQuestionFileSchema = exports.WhiteboxQuestionFileSchema = exports.DatabaseQuestionBaseSchema = exports.QuestionLevelSchema = exports.questionLevels = void 0;
+exports.DatabaseQuestionSchema = exports.BlackboxQuestionSchema = exports.WhiteboxQuestionSchema = exports.TrueOrFalseQuestionSchema = exports.MultipleChoiceQuestionSchema = exports.GapQuestionSchema = exports.BlackboxQuestionFileSchema = exports.WhiteboxQuestionFileSchema = exports.DatabaseQuestionBaseSchema = exports.ImportQuestionTypes = exports.QuestionLevelSchema = exports.questionLevels = void 0;
 const zod_1 = __nccwpck_require__(3301);
 const everest_1 = __nccwpck_require__(121);
 const gap_1 = __nccwpck_require__(4462);
@@ -7849,6 +7849,12 @@ const true_or_false_1 = __nccwpck_require__(7774);
 const multiple_choice_1 = __nccwpck_require__(1616);
 exports.questionLevels = ['Basic', 'Medium', 'Advanced'];
 exports.QuestionLevelSchema = zod_1.z.enum(exports.questionLevels).default('Medium');
+exports.ImportQuestionTypes = zod_1.z.enum([
+    multiple_choice_1.MultipleChoiceQuestionType,
+    gap_1.GapQuestionType,
+    true_or_false_1.TrueOrFalseQuestionType,
+    'EVEREST',
+]);
 exports.DatabaseQuestionBaseSchema = zod_1.z.object({
     id: zod_1.z.string(),
     type: zod_1.z.string(),
@@ -7971,7 +7977,7 @@ function validateEverest(filePath, fileContent, fileSystem) {
         return (0, cake_result_1.Err)({ filePath, errors });
     }
     const template = (_a = fileContent.templates) === null || _a === void 0 ? void 0 : _a[language];
-    if (!template) {
+    if (!template && typeof template !== 'string') {
         return (0, cake_result_1.Err)({
             filePath,
             errors: [`No template found for language ${language}`],
@@ -8135,7 +8141,14 @@ function validate(filePath, fileSystem) {
             errors: [parseToJSONResult.error],
             filePath,
         });
-    if (parseToJSONResult.value.type === 'EVEREST') {
+    const parseTypeResult = questions_1.ImportQuestionTypes.safeParse(parseToJSONResult.value.type);
+    if (!parseTypeResult.success) {
+        return (0, cake_result_1.Err)({
+            filePath,
+            errors: [`type: ${parseTypeResult.error.issues[0].message}`],
+        });
+    }
+    if (parseTypeResult.data === 'EVEREST') {
         return (0, validate_everest_1.validateEverest)(filePath, parseToJSONResult.value, fileSystem);
     }
     const validationResult = questions_1.DatabaseQuestionSchema.safeParse(parseToJSONResult.value);
