@@ -7670,7 +7670,13 @@ exports.AlternativeTextSchema = void 0;
 const zod_1 = __nccwpck_require__(3301);
 exports.AlternativeTextSchema = zod_1.z
     .string()
-    .or(zod_1.z.array(zod_1.z.string()));
+    .or(zod_1.z.array(zod_1.z.string()))
+    .refine((text) => {
+    const fullText = Array.isArray(text) ? text.join('\n') : text;
+    const isOnlyWhitespace = fullText.trim().length === 0;
+    const hasAtLeastOneCharacter = fullText.length > 0;
+    return hasAtLeastOneCharacter && !isOnlyWhitespace;
+}, { message: 'Alternative text must not be empty.' });
 //# sourceMappingURL=alternative-text.js.map
 
 /***/ }),
@@ -7793,18 +7799,47 @@ exports.FsFileSystem = FsFileSystem;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BaseGapQuestion = exports.GapQuestionTypeSchema = exports.GapQuestionType = void 0;
+exports.BaseGapQuestionSchema = exports.GapQuestionTypeSchema = exports.GapQuestionType = void 0;
 const zod_1 = __nccwpck_require__(3301);
 exports.GapQuestionType = 'GAP';
 exports.GapQuestionTypeSchema = zod_1.z.literal(exports.GapQuestionType);
-exports.BaseGapQuestion = zod_1.z.object({
+exports.BaseGapQuestionSchema = zod_1.z
+    .object({
     type: exports.GapQuestionTypeSchema,
-    text: zod_1.z.array(zod_1.z.string()),
-    alternatives: zod_1.z.array(zod_1.z.object({ id: zod_1.z.string(), value: zod_1.z.string() })),
-    gaps: zod_1.z.array(zod_1.z.object({
+    text: zod_1.z.array(zod_1.z.string()).refine((text) => {
+        const fullText = text.join('\n');
+        const isOnlyWhitespace = fullText.trim().length === 0;
+        const hasAtLeastOneCharacter = fullText.length > 0;
+        return hasAtLeastOneCharacter && !isOnlyWhitespace;
+    }, { message: 'Question text must not be empty.' }),
+    alternatives: zod_1.z
+        .array(zod_1.z.object({ id: zod_1.z.string(), value: zod_1.z.string() }))
+        .min(1)
+        .refine((alternatives) => {
+        const uniqueIds = new Set(alternatives.map((a) => a.id));
+        const allIdsAreUnique = uniqueIds.size === alternatives.length;
+        return allIdsAreUnique;
+    }, { message: 'All alternative ids must be unique.' }),
+    gaps: zod_1.z
+        .array(zod_1.z.object({
         expected: zod_1.z.string(),
-        feedbacks: zod_1.z.array(zod_1.z.object({ value: zod_1.z.string(), text: zod_1.z.string() })),
-    })),
+        feedbacks: zod_1.z.array(zod_1.z.object({ value: zod_1.z.string(), text: zod_1.z.string().min(1) })),
+    }))
+        .min(1),
+})
+    .refine((gapQuestion) => {
+    // all gap expected values are present in alternatives value
+    const gapExpectedValues = gapQuestion.gaps.map((gap) => gap.expected);
+    const alternativeValues = gapQuestion.alternatives.map((alternative) => alternative.value);
+    return gapExpectedValues.every((expected) => {
+        const expectedOccurencies = gapExpectedValues.filter((exp) => exp === expected).length;
+        const alternativeOccurencies = alternativeValues.filter((alt) => alt === expected).length;
+        return (alternativeOccurencies > 0 &&
+            expectedOccurencies === alternativeOccurencies);
+    });
+}, {
+    path: ['gaps'],
+    message: 'All gap expected values must be present in alternative values',
 });
 //# sourceMappingURL=gap.js.map
 
@@ -7816,20 +7851,45 @@ exports.BaseGapQuestion = zod_1.z.object({
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BaseMultipleChoiceQuestion = exports.MultipleChoiceQuestionTypeSchema = exports.MultipleChoiceQuestionType = void 0;
+exports.BaseMultipleChoiceQuestionSchema = exports.MultipleChoiceQuestionTypeSchema = exports.MultipleChoiceQuestionType = void 0;
 const zod_1 = __nccwpck_require__(3301);
 const alternative_text_1 = __nccwpck_require__(4841);
 exports.MultipleChoiceQuestionType = 'MULT';
 exports.MultipleChoiceQuestionTypeSchema = zod_1.z.literal(exports.MultipleChoiceQuestionType);
-exports.BaseMultipleChoiceQuestion = zod_1.z.object({
+exports.BaseMultipleChoiceQuestionSchema = zod_1.z.object({
     type: exports.MultipleChoiceQuestionTypeSchema,
-    text: zod_1.z.array(zod_1.z.string()),
-    alternatives: zod_1.z.array(zod_1.z.object({
-        id: zod_1.z.string(),
+    text: zod_1.z.array(zod_1.z.string()).refine((text) => {
+        const fullText = text.join('\n');
+        const isOnlyWhitespace = fullText.trim().length === 0;
+        const hasAtLeastOneCharacter = fullText.length > 0;
+        return hasAtLeastOneCharacter && !isOnlyWhitespace;
+    }, { message: 'Question text must not be empty.' }),
+    alternatives: zod_1.z
+        .array(zod_1.z.object({
+        id: zod_1.z.string().min(1),
         text: alternative_text_1.AlternativeTextSchema,
-        feedback: zod_1.z.string(),
+        feedback: zod_1.z.string().min(1),
         correct: zod_1.z.boolean(),
-    })),
+    }))
+        .min(2)
+        .refine((alternatives) => {
+        const uniqueIds = new Set(alternatives.map((a) => a.id));
+        const allIdsAreUnique = uniqueIds.size === alternatives.length;
+        return allIdsAreUnique;
+    }, { message: 'All alternative ids must be unique.' })
+        .refine((alternatives) => {
+        const uniqueTexts = new Set(alternatives.map((a) => {
+            const fullText = Array.isArray(a.text) ? a.text.join('\n') : a.text;
+            return fullText;
+        }));
+        const allIdsAreUnique = uniqueTexts.size === alternatives.length;
+        return allIdsAreUnique;
+    }, { message: 'All alternative texts must be unique.' })
+        .refine((alternatives) => {
+        const correctAlternatives = alternatives.filter((a) => a.correct);
+        const hasOnlyOneCorrectAlternative = correctAlternatives.length === 1;
+        return hasOnlyOneCorrectAlternative;
+    }, { message: 'There must be exactly one correct alternative.' }),
 });
 //# sourceMappingURL=multiple-choice.js.map
 
@@ -7842,28 +7902,29 @@ exports.BaseMultipleChoiceQuestion = zod_1.z.object({
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseQuestionSchema = exports.BlackboxQuestionSchema = exports.WhiteboxQuestionSchema = exports.TrueOrFalseQuestionSchema = exports.MultipleChoiceQuestionSchema = exports.GapQuestionSchema = exports.BlackboxQuestionFileSchema = exports.WhiteboxQuestionFileSchema = exports.DatabaseQuestionBaseSchema = exports.ImportQuestionTypes = exports.QuestionLevelSchema = exports.questionLevels = void 0;
-const zod_1 = __nccwpck_require__(3301);
+const zod_1 = __nccwpck_require__(1973);
+const zod_2 = __nccwpck_require__(3301);
 const everest_1 = __nccwpck_require__(121);
 const gap_1 = __nccwpck_require__(4462);
-const true_or_false_1 = __nccwpck_require__(7774);
 const multiple_choice_1 = __nccwpck_require__(1616);
+const true_or_false_1 = __nccwpck_require__(7774);
 exports.questionLevels = ['Basic', 'Medium', 'Advanced'];
-exports.QuestionLevelSchema = zod_1.z.enum(exports.questionLevels).default('Medium');
-exports.ImportQuestionTypes = zod_1.z.enum([
+exports.QuestionLevelSchema = zod_2.z.enum(exports.questionLevels).default('Medium');
+exports.ImportQuestionTypes = zod_2.z.enum([
     multiple_choice_1.MultipleChoiceQuestionType,
     gap_1.GapQuestionType,
     true_or_false_1.TrueOrFalseQuestionType,
     'EVEREST',
 ]);
-exports.DatabaseQuestionBaseSchema = zod_1.z.object({
-    id: zod_1.z.string(),
-    type: zod_1.z.string(),
-    language: zod_1.z.string().default('NA'),
+exports.DatabaseQuestionBaseSchema = zod_2.z.object({
+    id: zod_2.z.string(),
+    type: zod_2.z.string(),
+    language: zod_2.z.string().default('NA'),
     level: exports.QuestionLevelSchema,
-    classification: zod_1.z.array(zod_1.z.object({
-        knowledgeArea: zod_1.z.string(),
-        category: zod_1.z.string(),
-        subCategory: zod_1.z.string().default(''),
+    classification: zod_2.z.array(zod_2.z.object({
+        knowledgeArea: zod_2.z.string(),
+        category: zod_2.z.string(),
+        subCategory: zod_2.z.string().default(''),
     })),
 });
 exports.WhiteboxQuestionFileSchema = exports.DatabaseQuestionBaseSchema.merge(everest_1.BaseWhiteBoxQuestion.omit({
@@ -7871,19 +7932,19 @@ exports.WhiteboxQuestionFileSchema = exports.DatabaseQuestionBaseSchema.merge(ev
     publicTestCases: true,
     description: true,
 }).extend({
-    type: zod_1.z.literal('EVEREST'),
+    type: zod_2.z.literal('EVEREST'),
 }));
 exports.BlackboxQuestionFileSchema = exports.DatabaseQuestionBaseSchema.merge(everest_1.BaseBlackBoxQuestion.omit({
     description: true,
 }).extend({
-    type: zod_1.z.literal('EVEREST'),
+    type: zod_2.z.literal('EVEREST'),
 }));
-exports.GapQuestionSchema = exports.DatabaseQuestionBaseSchema.merge(gap_1.BaseGapQuestion);
-exports.MultipleChoiceQuestionSchema = exports.DatabaseQuestionBaseSchema.merge(multiple_choice_1.BaseMultipleChoiceQuestion);
-exports.TrueOrFalseQuestionSchema = exports.DatabaseQuestionBaseSchema.merge(true_or_false_1.BaseTrueOrFalseQuestion);
+exports.GapQuestionSchema = (0, zod_1.mergeWithRefinements)(exports.DatabaseQuestionBaseSchema, gap_1.BaseGapQuestionSchema);
+exports.MultipleChoiceQuestionSchema = exports.DatabaseQuestionBaseSchema.merge(multiple_choice_1.BaseMultipleChoiceQuestionSchema);
+exports.TrueOrFalseQuestionSchema = exports.DatabaseQuestionBaseSchema.merge(true_or_false_1.BaseTrueOrFalseQuestionSchema);
 exports.WhiteboxQuestionSchema = exports.DatabaseQuestionBaseSchema.merge(everest_1.BaseWhiteBoxQuestion);
 exports.BlackboxQuestionSchema = exports.DatabaseQuestionBaseSchema.merge(everest_1.BaseBlackBoxQuestion);
-exports.DatabaseQuestionSchema = zod_1.z.discriminatedUnion('type', [
+exports.DatabaseQuestionSchema = zod_2.z.union([
     exports.GapQuestionSchema,
     exports.MultipleChoiceQuestionSchema,
     exports.TrueOrFalseQuestionSchema,
@@ -7900,19 +7961,39 @@ exports.DatabaseQuestionSchema = zod_1.z.discriminatedUnion('type', [
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BaseTrueOrFalseQuestion = exports.TrueOrFalseQuestionTypeSchema = exports.TrueOrFalseQuestionType = void 0;
+exports.BaseTrueOrFalseQuestionSchema = exports.TrueOrFalseQuestionTypeSchema = exports.TrueOrFalseQuestionType = void 0;
 const zod_1 = __nccwpck_require__(3301);
 exports.TrueOrFalseQuestionType = 'VF';
 exports.TrueOrFalseQuestionTypeSchema = zod_1.z.literal(exports.TrueOrFalseQuestionType);
-exports.BaseTrueOrFalseQuestion = zod_1.z.object({
+exports.BaseTrueOrFalseQuestionSchema = zod_1.z.object({
     type: exports.TrueOrFalseQuestionTypeSchema,
-    text: zod_1.z.array(zod_1.z.string()),
-    alternatives: zod_1.z.array(zod_1.z.object({
+    text: zod_1.z.array(zod_1.z.string()).refine((text) => {
+        const fullText = text.join('\n');
+        const isOnlyWhitespace = fullText.trim().length === 0;
+        const hasAtLeastOneCharacter = fullText.length > 0;
+        return hasAtLeastOneCharacter && !isOnlyWhitespace;
+    }, { message: 'Question text must not be empty.' }),
+    alternatives: zod_1.z
+        .array(zod_1.z.object({
         id: zod_1.z.string(),
         text: zod_1.z.string(),
         feedback: zod_1.z.string(),
         correct: zod_1.z.boolean(),
-    })),
+    }))
+        .min(1)
+        .refine((alternatives) => {
+        const uniqueIds = new Set(alternatives.map((a) => a.id));
+        const allIdsAreUnique = uniqueIds.size === alternatives.length;
+        return allIdsAreUnique;
+    }, { message: 'All alternative ids must be unique.' })
+        .refine((alternatives) => {
+        const uniqueTexts = new Set(alternatives.map((a) => {
+            const fullText = Array.isArray(a.text) ? a.text.join('\n') : a.text;
+            return fullText;
+        }));
+        const allIdsAreUnique = uniqueTexts.size === alternatives.length;
+        return allIdsAreUnique;
+    }, { message: 'All alternative texts must be unique.' }),
 });
 //# sourceMappingURL=true-or-false.js.map
 
@@ -8173,6 +8254,47 @@ function parseToJSON(filePath, fileContent) {
     }
 }
 //# sourceMappingURL=validate.js.map
+
+/***/ }),
+
+/***/ 1973:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const tslib_1 = __nccwpck_require__(4351);
+tslib_1.__exportStar(__nccwpck_require__(5642), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 5642:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.mergeWithRefinements = void 0;
+const zod_1 = __nccwpck_require__(3301);
+function mergeWithRefinements(baseSchema, refinementSchema) {
+    const sourceSchema = refinementSchema.sourceType();
+    const mergedSchema = baseSchema.merge(sourceSchema);
+    return applyRefinement(mergedSchema, refinementSchema);
+}
+exports.mergeWithRefinements = mergeWithRefinements;
+function applyRefinement(mergedSchema, refinementSchema) {
+    if (refinementSchema._def.effect.type !== 'refinement') {
+        throw new Error('This only works for refinement ZodEffects');
+    }
+    const innerSchema = refinementSchema.innerType();
+    if (innerSchema._def.typeName !== zod_1.ZodFirstPartyTypeKind.ZodEffects) {
+        return mergedSchema.superRefine(refinementSchema._def.effect.refinement);
+    }
+    return applyRefinement(mergedSchema, innerSchema).superRefine(refinementSchema._def.effect.refinement);
+}
+//# sourceMappingURL=mergeWithRefinements.js.map
 
 /***/ })
 
