@@ -7396,7 +7396,7 @@ async function publish(input) {
             headers: {
                 'Content-Type': 'application/json',
                 apikey: token
-            },
+            }
         });
         if (!response.ok) {
             return (0, cake_result_1.Err)({

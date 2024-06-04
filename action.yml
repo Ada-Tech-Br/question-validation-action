@@ -8,7 +8,9 @@ branding:
 
 inputs:
   INPUT_FILES:
-    description: 'files to be validates, formated as a JSON array (e.g. ["file1.json", "file2.json"])'
+    description:
+      'files to be validates, formated as a JSON array (e.g. ["file1.json",
+      "file2.json"])'
     required: true
   PUBLISH:
     description: 'flag to publish the results to the question bank'
