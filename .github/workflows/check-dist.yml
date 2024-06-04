@@ -8,7 +8,9 @@
 # check and fail if the checked-in `dist/` directory does not match what is
 # expected from the build.
 name: Check Transpiled JavaScript
-
+env:
+  NPM_TOKEN: ${{ secrets.NPM_READ_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 on:
   push:
     branches:
