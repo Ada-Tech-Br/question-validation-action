@@ -1796,6 +1796,404 @@ function isLoopbackAddress(host) {
 
 /***/ }),
 
+/***/ 7467:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__nccwpck_require__(7505), exports);
+__exportStar(__nccwpck_require__(6310), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 6310:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+This code is heavily inspired by https://github.com/asteasolutions/zod-to-openapi/blob/master/src/zod-extensions.ts
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.extendZodWithOpenApi = void 0;
+const zod_openapi_1 = __nccwpck_require__(7505);
+function extendZodWithOpenApi(zod, forceOverride = false) {
+    if (!forceOverride && typeof zod.ZodSchema.prototype.openapi !== 'undefined') {
+        // This zod instance is already extended with the required methods,
+        // doing it again will just result in multiple wrapper methods for
+        // `optional` and `nullable`
+        return;
+    }
+    zod.ZodSchema.prototype.openapi = function (metadata) {
+        return (0, zod_openapi_1.extendApi)(this, metadata);
+    };
+}
+exports.extendZodWithOpenApi = extendZodWithOpenApi;
+//# sourceMappingURL=zod-extensions.js.map
+
+/***/ }),
+
+/***/ 7505:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.generateSchema = exports.extendApi = void 0;
+const ts_deepmerge_1 = __nccwpck_require__(3839);
+const zod_1 = __nccwpck_require__(3301);
+function extendApi(schema, schemaObject = {}) {
+    const This = schema.constructor;
+    const newSchema = new This(schema._def);
+    newSchema.metaOpenApi = Object.assign({}, schema.metaOpenApi || {}, schemaObject);
+    return newSchema;
+}
+exports.extendApi = extendApi;
+function iterateZodObject({ zodRef, useOutput, hideDefinitions, openApiVersion, }) {
+    const reduced = Object.keys(zodRef.shape)
+        .filter((key) => (hideDefinitions === null || hideDefinitions === void 0 ? void 0 : hideDefinitions.includes(key)) === false)
+        .reduce((carry, key) => (Object.assign(Object.assign({}, carry), { [key]: generateSchema(zodRef.shape[key], useOutput, openApiVersion) })), {});
+    return reduced;
+}
+function typeFormat(type, openApiVersion) {
+    return openApiVersion === '3.0' ? type : [type];
+}
+function parseTransformation({ zodRef, schemas, useOutput, openApiVersion, }) {
+    const input = generateSchema(zodRef._def.schema, useOutput, openApiVersion);
+    let output = 'undefined';
+    if (useOutput && zodRef._def.effect) {
+        const effect = zodRef._def.effect.type === 'transform' ? zodRef._def.effect : null;
+        if (effect && 'transform' in effect) {
+            try {
+                const type = Array.isArray(input.type) ? input.type[0] : input.type;
+                output = typeof effect.transform(['integer', 'number'].includes(`${type}`)
+                    ? 0
+                    : 'string' === type
+                        ? ''
+                        : 'boolean' === type
+                            ? false
+                            : 'object' === type
+                                ? {}
+                                : 'null' === type
+                                    ? null
+                                    : 'array' === type
+                                        ? []
+                                        : undefined, { addIssue: () => undefined, path: [] } // TODO: Discover if context is necessary here
+                );
+            }
+            catch (e) {
+                /**/
+            }
+        }
+    }
+    const outputType = output;
+    return (0, ts_deepmerge_1.default)(Object.assign(Object.assign(Object.assign({}, (zodRef.description ? { description: zodRef.description } : {})), input), (['number', 'string', 'boolean', 'null'].includes(output)
+        ? {
+            type: typeFormat(outputType, openApiVersion),
+        }
+        : {})), ...schemas);
+}
+function parseString({ zodRef, schemas, openApiVersion, }) {
+    const baseSchema = {
+        type: typeFormat('string', openApiVersion),
+    };
+    const { checks = [] } = zodRef._def;
+    checks.forEach((item) => {
+        switch (item.kind) {
+            case 'email':
+                baseSchema.format = 'email';
+                break;
+            case 'uuid':
+                baseSchema.format = 'uuid';
+                break;
+            case 'cuid':
+                baseSchema.format = 'cuid';
+                break;
+            case 'url':
+                baseSchema.format = 'uri';
+                break;
+            case 'datetime':
+                baseSchema.format = 'date-time';
+                break;
+            case 'length':
+                baseSchema.minLength = item.value;
+                baseSchema.maxLength = item.value;
+                break;
+            case 'max':
+                baseSchema.maxLength = item.value;
+                break;
+            case 'min':
+                baseSchema.minLength = item.value;
+                break;
+            case 'regex':
+                baseSchema.pattern = item.regex.source;
+                break;
+        }
+    });
+    return (0, ts_deepmerge_1.default)(baseSchema, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseNumber({ zodRef, schemas, openApiVersion, }) {
+    const baseSchema = {
+        type: typeFormat('number', openApiVersion),
+    };
+    const { checks = [] } = zodRef._def;
+    checks.forEach((item) => {
+        switch (item.kind) {
+            case 'max':
+                if (item.inclusive)
+                    baseSchema.maximum = item.value;
+                else
+                    baseSchema.exclusiveMaximum = item.value;
+                break;
+            case 'min':
+                if (item.inclusive)
+                    baseSchema.minimum = item.value;
+                else
+                    baseSchema.exclusiveMinimum = item.value;
+                break;
+            case 'int':
+                baseSchema.type = typeFormat('integer', openApiVersion);
+                break;
+            case 'multipleOf':
+                baseSchema.multipleOf = item.value;
+                break;
+        }
+    });
+    return (0, ts_deepmerge_1.default)(baseSchema, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function getExcludedDefinitionsFromSchema(schemas) {
+    const excludedDefinitions = [];
+    for (const schema of schemas) {
+        if (Array.isArray(schema.hideDefinitions)) {
+            excludedDefinitions.push(...schema.hideDefinitions);
+        }
+    }
+    return excludedDefinitions;
+}
+function parseObject({ zodRef, schemas, useOutput, hideDefinitions, openApiVersion, }) {
+    var _a;
+    let additionalProperties;
+    // `catchall` obviates `strict`, `strip`, and `passthrough`
+    if (!(zodRef._def.catchall instanceof zod_1.z.ZodNever ||
+        ((_a = zodRef._def.catchall) === null || _a === void 0 ? void 0 : _a._def.typeName) === 'ZodNever'))
+        additionalProperties = generateSchema(zodRef._def.catchall, useOutput, openApiVersion);
+    else if (zodRef._def.unknownKeys === 'passthrough')
+        additionalProperties = true;
+    else if (zodRef._def.unknownKeys === 'strict')
+        additionalProperties = false;
+    // So that `undefined` values don't end up in the schema and be weird
+    additionalProperties =
+        additionalProperties != null ? { additionalProperties } : {};
+    const requiredProperties = Object.keys(zodRef.shape).filter((key) => {
+        const item = zodRef.shape[key];
+        return (!(item.isOptional() ||
+            item instanceof zod_1.z.ZodDefault ||
+            item._def.typeName === 'ZodDefault') && !(item instanceof zod_1.z.ZodNever || item._def.typeName === 'ZodDefault'));
+    });
+    const required = requiredProperties.length > 0 ? { required: requiredProperties } : {};
+    return (0, ts_deepmerge_1.default)(Object.assign(Object.assign(Object.assign({ type: typeFormat('object', openApiVersion), properties: iterateZodObject({
+            zodRef: zodRef,
+            schemas,
+            useOutput,
+            hideDefinitions: getExcludedDefinitionsFromSchema(schemas),
+            openApiVersion,
+        }) }, required), additionalProperties), hideDefinitions), zodRef.description ? { description: zodRef.description, hideDefinitions } : {}, ...schemas);
+}
+function parseRecord({ zodRef, schemas, useOutput, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)({
+        type: typeFormat('object', openApiVersion),
+        additionalProperties: zodRef._def.valueType instanceof zod_1.z.ZodUnknown
+            ? {}
+            : generateSchema(zodRef._def.valueType, useOutput, openApiVersion),
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseBigInt({ zodRef, schemas, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)({
+        type: typeFormat('integer', openApiVersion),
+        format: 'int64'
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseBoolean({ zodRef, schemas, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)({ type: typeFormat('boolean', openApiVersion) }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseDate({ zodRef, schemas, openApiVersion }) {
+    return (0, ts_deepmerge_1.default)({
+        type: typeFormat('string', openApiVersion),
+        format: 'date-time'
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseNull({ zodRef, schemas, openApiVersion }) {
+    return (0, ts_deepmerge_1.default)(openApiVersion === '3.0' ? { type: 'null' } : {
+        type: ['string', 'null'],
+        enum: ['null'],
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseOptional({ schemas, zodRef, useOutput, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)(generateSchema(zodRef.unwrap(), useOutput, openApiVersion), zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseNullable({ schemas, zodRef, useOutput, openApiVersion, }) {
+    const schema = generateSchema(zodRef.unwrap(), useOutput, openApiVersion);
+    return (0, ts_deepmerge_1.default)(schema, { type: typeFormat('null', openApiVersion) }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseDefault({ schemas, zodRef, useOutput, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)(Object.assign({ default: zodRef._def.defaultValue() }, generateSchema(zodRef._def.innerType, useOutput, openApiVersion)), zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseArray({ schemas, zodRef, useOutput, openApiVersion, }) {
+    const constraints = {};
+    if (zodRef._def.exactLength != null) {
+        constraints.minItems = zodRef._def.exactLength.value;
+        constraints.maxItems = zodRef._def.exactLength.value;
+    }
+    if (zodRef._def.minLength != null)
+        constraints.minItems = zodRef._def.minLength.value;
+    if (zodRef._def.maxLength != null)
+        constraints.maxItems = zodRef._def.maxLength.value;
+    return (0, ts_deepmerge_1.default)(Object.assign({ type: typeFormat('array', openApiVersion), items: generateSchema(zodRef.element, useOutput, openApiVersion) }, constraints), zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseLiteral({ schemas, zodRef, openApiVersion, }) {
+    const type = typeof zodRef._def.value;
+    return (0, ts_deepmerge_1.default)({
+        type: typeFormat(type, openApiVersion),
+        enum: [zodRef._def.value],
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseEnum({ schemas, zodRef, openApiVersion, }) {
+    const type = typeof Object.values(zodRef._def.values)[0];
+    return (0, ts_deepmerge_1.default)({
+        type: typeFormat(type, openApiVersion),
+        enum: Object.values(zodRef._def.values),
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseIntersection({ schemas, zodRef, useOutput, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)({
+        allOf: [
+            generateSchema(zodRef._def.left, useOutput, openApiVersion),
+            generateSchema(zodRef._def.right, useOutput, openApiVersion),
+        ],
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseUnion({ schemas, zodRef, useOutput, openApiVersion, }) {
+    const contents = zodRef._def.options;
+    if (contents.reduce((prev, content) => prev && content._def.typeName === 'ZodLiteral', true)) {
+        // special case to transform unions of literals into enums
+        const literals = contents;
+        const type = literals.reduce((prev, content) => !prev || prev === typeof content._def.value
+            ? typeof content._def.value
+            : null, null);
+        if (type) {
+            return (0, ts_deepmerge_1.default)({
+                type: typeFormat(type, openApiVersion),
+                enum: literals.map((literal) => literal._def.value),
+            }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+        }
+    }
+    return (0, ts_deepmerge_1.default)({
+        oneOf: contents.map((schema) => generateSchema(schema, useOutput, openApiVersion)),
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseDiscriminatedUnion({ schemas, zodRef, useOutput, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)({
+        discriminator: {
+            propertyName: zodRef._def.discriminator,
+        },
+        oneOf: Array.from(zodRef._def.options.values()).map((schema) => generateSchema(schema, useOutput, openApiVersion)),
+    }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseNever({ zodRef, schemas, }) {
+    return (0, ts_deepmerge_1.default)({ readOnly: true }, zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parseBranded({ schemas, zodRef, useOutput, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)(generateSchema(zodRef._def.type, useOutput, openApiVersion), ...schemas);
+}
+function catchAllParser({ zodRef, schemas, }) {
+    return (0, ts_deepmerge_1.default)(zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+function parsePipeline({ schemas, zodRef, useOutput, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)(generateSchema(useOutput ? zodRef._def.out : zodRef._def.in, useOutput, openApiVersion), ...schemas);
+}
+function parseReadonly({ zodRef, useOutput, schemas, openApiVersion, }) {
+    return (0, ts_deepmerge_1.default)(generateSchema(zodRef._def.innerType, useOutput, openApiVersion), zodRef.description ? { description: zodRef.description } : {}, ...schemas);
+}
+const workerMap = {
+    ZodObject: parseObject,
+    ZodRecord: parseRecord,
+    ZodString: parseString,
+    ZodNumber: parseNumber,
+    ZodBigInt: parseBigInt,
+    ZodBoolean: parseBoolean,
+    ZodDate: parseDate,
+    ZodNull: parseNull,
+    ZodOptional: parseOptional,
+    ZodNullable: parseNullable,
+    ZodDefault: parseDefault,
+    ZodArray: parseArray,
+    ZodLiteral: parseLiteral,
+    ZodEnum: parseEnum,
+    ZodNativeEnum: parseEnum,
+    ZodTransformer: parseTransformation,
+    ZodEffects: parseTransformation,
+    ZodIntersection: parseIntersection,
+    ZodUnion: parseUnion,
+    ZodDiscriminatedUnion: parseDiscriminatedUnion,
+    ZodNever: parseNever,
+    ZodBranded: parseBranded,
+    // TODO Transform the rest to schemas
+    ZodUndefined: catchAllParser,
+    // TODO: `prefixItems` is allowed in OpenAPI 3.1 which can be used to create tuples
+    ZodTuple: catchAllParser,
+    ZodMap: catchAllParser,
+    ZodFunction: catchAllParser,
+    ZodLazy: catchAllParser,
+    ZodPromise: catchAllParser,
+    ZodAny: catchAllParser,
+    ZodUnknown: catchAllParser,
+    ZodVoid: catchAllParser,
+    ZodPipeline: parsePipeline,
+    ZodReadonly: parseReadonly,
+};
+function generateSchema(zodRef, useOutput = false, openApiVersion = '3.1') {
+    const { metaOpenApi = {} } = zodRef;
+    const schemas = [
+        ...(Array.isArray(metaOpenApi) ? metaOpenApi : [metaOpenApi]),
+    ];
+    try {
+        const typeName = zodRef._def.typeName;
+        if (typeName in workerMap) {
+            return workerMap[typeName]({
+                zodRef: zodRef,
+                schemas,
+                useOutput,
+                openApiVersion,
+            });
+        }
+        return catchAllParser({ zodRef, schemas, openApiVersion });
+    }
+    catch (err) {
+        console.error(err);
+        return catchAllParser({ zodRef, schemas, openApiVersion });
+    }
+}
+exports.generateSchema = generateSchema;
+//# sourceMappingURL=zod-openapi.js.map
+
+/***/ }),
+
 /***/ 8569:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -7652,10 +8050,20 @@ module.exports = require("util");
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BaseTrueOrFalseQuestionSchema = exports.BaseWhiteBoxQuestion = exports.BaseBlackBoxQuestion = exports.BaseMultipleChoiceQuestionSchema = exports.BaseGapQuestionSchema = void 0;
 const tslib_1 = __nccwpck_require__(4351);
 tslib_1.__exportStar(__nccwpck_require__(6654), exports);
 tslib_1.__exportStar(__nccwpck_require__(7063), exports);
 tslib_1.__exportStar(__nccwpck_require__(5620), exports);
+var gap_1 = __nccwpck_require__(4462);
+Object.defineProperty(exports, "BaseGapQuestionSchema", ({ enumerable: true, get: function () { return gap_1.BaseGapQuestionSchema; } }));
+var multiple_choice_1 = __nccwpck_require__(1616);
+Object.defineProperty(exports, "BaseMultipleChoiceQuestionSchema", ({ enumerable: true, get: function () { return multiple_choice_1.BaseMultipleChoiceQuestionSchema; } }));
+var everest_1 = __nccwpck_require__(121);
+Object.defineProperty(exports, "BaseBlackBoxQuestion", ({ enumerable: true, get: function () { return everest_1.BaseBlackBoxQuestion; } }));
+Object.defineProperty(exports, "BaseWhiteBoxQuestion", ({ enumerable: true, get: function () { return everest_1.BaseWhiteBoxQuestion; } }));
+var true_or_false_1 = __nccwpck_require__(7774);
+Object.defineProperty(exports, "BaseTrueOrFalseQuestionSchema", ({ enumerable: true, get: function () { return true_or_false_1.BaseTrueOrFalseQuestionSchema; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -7926,6 +8334,7 @@ exports.DatabaseQuestionBaseSchema = zod_2.z.object({
         category: zod_2.z.string(),
         subCategory: zod_2.z.string().default(''),
     })),
+    tagsOrConcepts: zod_2.z.array(zod_2.z.string()).optional(),
 });
 exports.WhiteboxQuestionFileSchema = exports.DatabaseQuestionBaseSchema.merge(everest_1.BaseWhiteBoxQuestion.omit({
     privateTestCases: true,
@@ -8006,9 +8415,10 @@ exports.BaseTrueOrFalseQuestionSchema = zod_1.z.object({
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validateEverest = void 0;
+const tslib_1 = __nccwpck_require__(4351);
 const questions_1 = __nccwpck_require__(6447);
 const cake_result_1 = __nccwpck_require__(8569);
-const path = __nccwpck_require__(1017);
+const path = tslib_1.__importStar(__nccwpck_require__(1017));
 function validateEverest(filePath, fileContent, fileSystem) {
     var _a;
     const type = fileContent.type;
@@ -8257,14 +8667,111 @@ function parseToJSON(filePath, fileContent) {
 
 /***/ }),
 
+/***/ 2126:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.fromFileList = exports.file = void 0;
+const zod_openapi_1 = __nccwpck_require__(7467);
+const zod_1 = __nccwpck_require__(3301);
+(0, zod_openapi_1.extendZodWithOpenApi)(zod_1.z);
+/**
+ * Parse a value to a {@link FileObject}.
+ * Use {@link fromFileList} whith {@link file} in react-hook-form to parse the value of a <Input type="file" />.
+ */
+function file() {
+    return zod_1.z
+        .custom()
+        .transform((value, ctx) => {
+        let file;
+        /**
+         * We parse from array to a single object, because the input for this schema may be an array,
+         * even when the schema is just a.file() and not a.file().array().
+         *
+         * On {@link formidable.Formidable.parse} the values it gets on multipart/form-data are always
+         * given as array as defined on {@link formidable.Fields} and {@link formidable.Files}.
+         *
+         * On <Input type="file" /> the value is given as an FileList, which may be converted to an array
+         * with {@link fromFileList}.
+         */
+        if (Array.isArray(value)) {
+            file = value[0];
+        }
+        else {
+            file = value;
+        }
+        if (!isValidFileObject(file)) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                message: 'Value must be a formidable.File or a browser File object.',
+            });
+            return zod_1.z.NEVER;
+        }
+        file.browser = () => {
+            if (file instanceof File) {
+                return file;
+            }
+            throw new Error('Cannot access browser file on node.');
+        };
+        file.node = () => {
+            if (isFormidableFile(file)) {
+                return file;
+            }
+            throw new Error('Cannot access formidable file on browser.');
+        };
+        return file;
+    })
+        .openapi({
+        type: 'string',
+        format: 'binary',
+    });
+}
+exports.file = file;
+function isValidFileObject(value) {
+    return isFormidableFile(value) || value instanceof File;
+}
+function isFormidableFile(value) {
+    const file = value;
+    return (typeof file === 'object' &&
+        file !== null &&
+        typeof file.filepath === 'string' &&
+        typeof file.mimetype === 'string' &&
+        typeof file.originalFilename === 'string' &&
+        typeof file.size === 'number');
+}
+function fromFileList(fileSchema) {
+    return (zod_1.z
+        // not using z.instanceof because it crashes when running on Next.js server
+        .custom((value) => {
+        return value instanceof FileList;
+    }, { message: 'Value must be a FileList.' })
+        .transform((fileList) => Array.from(fileList))
+        .pipe(fileSchema));
+}
+exports.fromFileList = fromFileList;
+//# sourceMappingURL=formidableFile.js.map
+
+/***/ }),
+
 /***/ 1973:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.a = void 0;
 const tslib_1 = __nccwpck_require__(4351);
+const formidableFile_1 = __nccwpck_require__(2126);
+const mergeWithRefinements_1 = __nccwpck_require__(5642);
 tslib_1.__exportStar(__nccwpck_require__(5642), exports);
+tslib_1.__exportStar(__nccwpck_require__(1348), exports);
+exports.a = {
+    file: formidableFile_1.file,
+    fromFileList: formidableFile_1.fromFileList,
+    mergeWithRefinements: mergeWithRefinements_1.mergeWithRefinements,
+};
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -8274,7 +8781,6 @@ tslib_1.__exportStar(__nccwpck_require__(5642), exports);
 
 "use strict";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.mergeWithRefinements = void 0;
 const zod_1 = __nccwpck_require__(3301);
@@ -8295,6 +8801,207 @@ function applyRefinement(mergedSchema, refinementSchema) {
     return applyRefinement(mergedSchema, innerSchema).superRefine(refinementSchema._def.effect.refinement);
 }
 //# sourceMappingURL=mergeWithRefinements.js.map
+
+/***/ }),
+
+/***/ 1348:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.InternalServerErrorResult = exports.InternalServerErrorResultSchema = exports.UnprocessableEntityResult = exports.UnprocessableEntityResultSchema = exports.ConflictResult = exports.ConflictResultSchema = exports.NotFoundResult = exports.NotFoundResultSchema = exports.ForbiddenResult = exports.ForbiddenResultSchema = exports.UnauthorizedResult = exports.UnauthorizedResultSchema = exports.ValidationErrorResult = exports.ValidationErrorResultSchema = exports.BadRequestResult = exports.BadRequestResultSchema = exports.ErrorResult = exports.ErrorResultSchema = void 0;
+const zod_1 = __nccwpck_require__(3301);
+exports.ErrorResultSchema = zod_1.z.object({
+    statusCode: zod_1.z.number(),
+    type: zod_1.z.string(),
+    details: zod_1.z.unknown(),
+    message: zod_1.z.string(),
+});
+function ErrorResult(statusCode, type, message, details) {
+    const errorResult = {
+        statusCode,
+        type,
+        message,
+        details,
+    };
+    return errorResult;
+}
+exports.ErrorResult = ErrorResult;
+exports.BadRequestResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(400),
+    type: zod_1.z.literal('BadRequest'),
+});
+function BadRequestResult(message, details) {
+    return {
+        statusCode: 400,
+        type: 'BadRequest',
+        message,
+        details,
+    };
+}
+exports.BadRequestResult = BadRequestResult;
+exports.ValidationErrorResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(422),
+    type: zod_1.z.literal('ValidationError'),
+    details: zod_1.z
+        .object({
+        error: zod_1.z.instanceof(zod_1.z.ZodError),
+        location: zod_1.z.enum(['body', 'path', 'query', 'headers']),
+    })
+        .optional(),
+});
+function ValidationErrorResult(message, details) {
+    return {
+        statusCode: 422,
+        type: 'ValidationError',
+        message,
+        details,
+    };
+}
+exports.ValidationErrorResult = ValidationErrorResult;
+exports.UnauthorizedResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(401),
+    type: zod_1.z.literal('Unauthorized'),
+});
+function UnauthorizedResult(message, details) {
+    return {
+        statusCode: 401,
+        type: 'Unauthorized',
+        message,
+        details,
+    };
+}
+exports.UnauthorizedResult = UnauthorizedResult;
+exports.ForbiddenResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(403),
+    type: zod_1.z.literal('Forbidden'),
+});
+function ForbiddenResult(message, details) {
+    return {
+        statusCode: 403,
+        type: 'Forbidden',
+        message,
+        details,
+    };
+}
+exports.ForbiddenResult = ForbiddenResult;
+exports.NotFoundResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(404),
+    type: zod_1.z.literal('NotFound'),
+});
+function NotFoundResult(message, details) {
+    return {
+        statusCode: 404,
+        type: 'NotFound',
+        message,
+        details,
+    };
+}
+exports.NotFoundResult = NotFoundResult;
+exports.ConflictResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(409),
+    type: zod_1.z.literal('Conflict'),
+});
+function ConflictResult(message, details) {
+    return {
+        statusCode: 409,
+        type: 'Conflict',
+        message,
+        details,
+    };
+}
+exports.ConflictResult = ConflictResult;
+exports.UnprocessableEntityResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(422),
+    type: zod_1.z.literal('UnprocessableEntity'),
+});
+function UnprocessableEntityResult(message, details) {
+    return {
+        statusCode: 422,
+        type: 'UnprocessableEntity',
+        message,
+        details,
+    };
+}
+exports.UnprocessableEntityResult = UnprocessableEntityResult;
+exports.InternalServerErrorResultSchema = exports.ErrorResultSchema.extend({
+    statusCode: zod_1.z.literal(500),
+    type: zod_1.z.literal('InternalServerError'),
+});
+function InternalServerErrorResult(message, details) {
+    return {
+        statusCode: 500,
+        type: 'InternalServerError',
+        message,
+        details,
+    };
+}
+exports.InternalServerErrorResult = InternalServerErrorResult;
+//# sourceMappingURL=resultSchemas.js.map
+
+/***/ }),
+
+/***/ 3839:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+// istanbul ignore next
+const isObject = (obj) => {
+    if (typeof obj === "object" && obj !== null) {
+        if (typeof Object.getPrototypeOf === "function") {
+            const prototype = Object.getPrototypeOf(obj);
+            return prototype === Object.prototype || prototype === null;
+        }
+        return Object.prototype.toString.call(obj) === "[object Object]";
+    }
+    return false;
+};
+const merge = (...objects) => objects.reduce((result, current) => {
+    if (Array.isArray(current)) {
+        throw new TypeError("Arguments provided to ts-deepmerge must be objects, not arrays.");
+    }
+    Object.keys(current).forEach((key) => {
+        if (["__proto__", "constructor", "prototype"].includes(key)) {
+            return;
+        }
+        if (Array.isArray(result[key]) && Array.isArray(current[key])) {
+            result[key] = merge.options.mergeArrays
+                ? merge.options.uniqueArrayItems
+                    ? Array.from(new Set(result[key].concat(current[key])))
+                    : [...result[key], ...current[key]]
+                : current[key];
+        }
+        else if (isObject(result[key]) && isObject(current[key])) {
+            result[key] = merge(result[key], current[key]);
+        }
+        else {
+            result[key] =
+                current[key] === undefined
+                    ? merge.options.allowUndefinedOverrides
+                        ? current[key]
+                        : result[key]
+                    : current[key];
+        }
+    });
+    return result;
+}, {});
+const defaultOptions = {
+    allowUndefinedOverrides: true,
+    mergeArrays: true,
+    uniqueArrayItems: true,
+};
+merge.options = defaultOptions;
+merge.withOptions = (options, ...objects) => {
+    merge.options = Object.assign(Object.assign({}, defaultOptions), options);
+    const result = merge(...objects);
+    merge.options = defaultOptions;
+    return result;
+};
+exports["default"] = merge;
+
 
 /***/ })
 
